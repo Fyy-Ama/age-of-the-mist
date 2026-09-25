@@ -17,6 +17,7 @@ class Game {
         this.saveManager = null;
         this.dayNightCycle = null;
         this.worldEvents = null;
+        this.dialogueManager = null;
         this.state = GAME_STATES.LOADING;
         this.lastTime = 0;
         this.accumulator = 0;
@@ -58,9 +59,19 @@ class Game {
 
         this.dayNightCycle = new DayNightCycle(this.eventBus);
         this.worldEvents = new WorldEvents(this.eventBus);
+        this.dialogueManager = new DialogueManager(this.eventBus);
+        this.dialogueManager.setEffectsHandler((effect) => this._handleDialogueEffect(effect));
 
         this.eventBus.on('daynight:phaseChanged', (data) => {
             this.worldEvents.onPhaseChange(data.phase);
+        });
+
+        this.eventBus.on('dialogue:started', () => {
+            this._pauseForDialogue();
+        });
+
+        this.eventBus.on('dialogue:ended', () => {
+            this._resumeFromDialogue();
         });
 
         this._prevPlayerX = this.player.x;
@@ -188,6 +199,20 @@ class Game {
         if (this.state !== GAME_STATES.PAUSED) return;
         this.uiManager.closeActivePanel();
         this.state = GAME_STATES.PLAYING;
+        this.lastTime = performance.now();
+        this.accumulator = 0;
+        requestAnimationFrame((now) => this._loop(now));
+    }
+
+    _pauseForDialogue() {
+        if (this.state !== GAME_STATES.PLAYING) return;
+        this.state = GAME_STATES.PAUSED;
+    }
+
+    _resumeFromDialogue() {
+        if (this.state !== GAME_STATES.PAUSED) return;
+        this.state = GAME_STATES.PLAYING;
+        this.input.syncState();
         this.lastTime = performance.now();
         this.accumulator = 0;
         requestAnimationFrame((now) => this._loop(now));
@@ -342,6 +367,28 @@ class Game {
             return;
         }
 
+        const nearbyNpcs = this.worldMap.getNpcsInRect(facingRect);
+        let activeNpc = null;
+        let nearestNpcDist = Infinity;
+        const ncx = this.player.x + this.player.width / 2;
+        const ncy = this.player.y + this.player.height / 2;
+        for (const npc of nearbyNpcs) {
+            const b = npc.getBounds();
+            const dist = Math.sqrt((ncx - (b.x + b.w / 2)) ** 2 + (ncy - (b.y + b.h / 2)) ** 2);
+            if (dist < nearestNpcDist) {
+                nearestNpcDist = dist;
+                activeNpc = npc;
+            }
+        }
+
+        if (activeNpc) {
+            this.uiManager.showInteractionPrompt(activeNpc.getPrompt());
+            if (this.input.isKeyPressed('e') || this.input.isMouseClicked()) {
+                this._startNpcDialogue(activeNpc);
+            }
+            return;
+        }
+
         const nearby = this.worldMap.getInteractablesInRect(facingRect);
 
         let nearest = null;
@@ -373,6 +420,39 @@ class Game {
             }
         } else {
             this.uiManager.hideInteractionPrompt();
+        }
+    }
+
+    _startNpcDialogue(npc) {
+        if (this.dialogueManager.isActive()) return;
+        this.dialogueManager.start(npc.dialogueTreeId, this._buildDialogueContext());
+    }
+
+    _buildDialogueContext() {
+        return {
+            getItemCount: (itemId) => this.inventory ? this.inventory.countItem(itemId) : 0,
+            getQuestState: (questId) => this.questManager ? this.questManager.getState(questId) : undefined,
+            hasDiscovered: (id) => this.discoveryLog ? this.discoveryLog.hasRecorded(id) : false,
+            getFlag: (flag) => this.questManager ? this.questManager.getFlag(flag) : false
+        };
+    }
+
+    _handleDialogueEffect(effect) {
+        if (!effect) return;
+        switch (effect.type) {
+            case 'addItem':
+                if (this.inventory && effect.itemId) this.inventory.addItem(effect.itemId);
+                break;
+            case 'recordDiscovery':
+                if (this.discoveryLog && effect.id) {
+                    this.discoveryLog.record('quest', effect.id, effect.text || '');
+                }
+                break;
+            case 'startQuest':
+            case 'completeQuest':
+            case 'setFlag':
+                // 任务系统于步骤 4 接入
+                break;
         }
     }
 

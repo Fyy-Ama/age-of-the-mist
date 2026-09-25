@@ -121,3 +121,59 @@ class Guardian {
         }
     }
 }
+
+// 头顶任务标记状态：none / available(!) / active(?) / complete(✓)
+const NPC_MARKERS = {
+    none: null,
+    available: { char: '!', color: '#ffd700' },
+    active: { char: '?', color: '#c0c0c0' },
+    complete: { char: '✓', color: '#8ad46a' }
+};
+
+class Npc {
+    constructor(def) {
+        this.id = def.id;
+        this.type = 'npc';
+        this.name = def.name;
+        this.dialogueTreeId = def.dialogueTreeId || def.id;
+        this.spriteKey = def.spriteKey || def.id;
+        this.x = def.tileX * TILE_SIZE;
+        this.y = def.tileY * TILE_SIZE;
+        this.width = TILE_SIZE;
+        this.height = TILE_SIZE;
+        this.regionId = def.regionId || null;
+        this.promptText = def.promptText || ('与' + this.name + '交谈 [E]');
+        this.flavorText = def.flavorText || '';
+        this.markerState = 'none';
+    }
+
+    getBounds() {
+        return { x: this.x, y: this.y, w: this.width, h: this.height };
+    }
+
+    getAABB() {
+        return this.getBounds();
+    }
+
+    getPrompt() {
+        return this.promptText;
+    }
+
+    getMarker() {
+        return NPC_MARKERS[this.markerState] || null;
+    }
+
+    setMarkerState(state) {
+        this.markerState = NPC_MARKERS[state] ? state : 'none';
+    }
+
+    getState() {
+        return { markerState: this.markerState };
+    }
+
+    setState(state) {
+        if (state && state.markerState) {
+            this.setMarkerState(state.markerState);
+        }
+    }
+}

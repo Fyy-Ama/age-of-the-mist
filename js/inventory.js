@@ -25,6 +25,14 @@ class Inventory {
         return this._items.some(item => item.id === itemId);
     }
 
+    countItem(itemId) {
+        let count = 0;
+        for (const item of this._items) {
+            if (item.id === itemId) count++;
+        }
+        return count;
+    }
+
     getItems() {
         return [...this._items].sort((a, b) => b.collectedAt - a.collectedAt);
     }

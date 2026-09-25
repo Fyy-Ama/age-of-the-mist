@@ -102,8 +102,8 @@ function generateMapData() {
                     tileId = TILE_IDS.RUIN_BRICK;
                 }
             } else if (col >= 140 && row < 80) {
-                tileId = TILE_IDS.CAVE_ROCK;
-                if (Math.random() < 0.1 && row > 1 && col > 1 && row < WORLD_ROWS - 2 && col < WORLD_COLS - 2) {
+                tileId = TILE_IDS.STONE_FLOOR;
+                if (Math.random() < 0.12 && row > 1 && col > 1 && row < WORLD_ROWS - 2 && col < WORLD_COLS - 2) {
                     tileId = TILE_IDS.CAVE_ROCK;
                 }
             } else if (col >= 80 && col < 120 && row >= 80 && row < 120) {

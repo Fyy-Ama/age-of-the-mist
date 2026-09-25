@@ -23,6 +23,9 @@ const REGIONS = [
             { id: 'tc_herb3', type: 'collectible', itemId: 'herb_bloodthorn', tileX: 98, tileY: 112, promptText: '采集血棘 [E]', flavorText: '帐篷后面的荆棘丛中有一株红色草药。' },
             { id: 'tc_coin2', type: 'collectible', itemId: 'coin_bronze', tileX: 85, tileY: 98, promptText: '捡起铜币 [E]', flavorText: '水井旁有一枚被遗忘的铜币。' }
         ],
+        npcs: [
+            { id: 'npc_old_traveler', name: '老旅人', dialogueTreeId: 'npc_old_traveler', spriteKey: 'npc_old_traveler', tileX: 97, tileY: 97, regionId: 'travelers_camp', flavorText: '篝火旁，一位风尘仆仆的老人正望着火焰出神。' }
+        ],
         ambientFeatures: ['campfire_glow', 'tent_markers']
     },
     {
@@ -50,6 +53,9 @@ const REGIONS = [
         guardians: [
             { id: 'guardian_forest', name: '林地守卫者', tileX: 40, tileY: 50, regionId: 'misty_forest', flavorText: '一团浓雾凝聚成了人形，挡住了去路。' }
         ],
+        npcs: [
+            { id: 'npc_hermit_herbalist', name: '隐士药师', dialogueTreeId: 'npc_hermit_herbalist', spriteKey: 'npc_hermit_herbalist', tileX: 35, tileY: 45, regionId: 'misty_forest', flavorText: '树洞小屋前，一位披苔绿斗篷的药师正在捣药。' }
+        ],
         ambientFeatures: ['fog_overlay', 'dense_trees']
     },
     {
@@ -74,6 +80,9 @@ const REGIONS = [
         ],
         guardians: [
             { id: 'guardian_temple', name: '神殿守望者', tileX: 110, tileY: 40, regionId: 'abandoned_temple', flavorText: '一尊石像突然转动了头颅，眼中亮起蓝光。' }
+        ],
+        npcs: [
+            { id: 'npc_stele_warden', name: '石碑守卫', dialogueTreeId: 'npc_stele_warden', spriteKey: 'npc_stele_warden', tileX: 100, tileY: 35, regionId: 'abandoned_temple', flavorText: '断壁残垣间，一尊半人半石的守卫静静伫立。' }
         ],
         ambientFeatures: ['broken_pillars', 'moss']
     },
@@ -100,6 +109,9 @@ const REGIONS = [
         guardians: [
             { id: 'guardian_cavern', name: '洞窟巨影', tileX: 170, tileY: 45, regionId: 'dark_cavern', flavorText: '黑暗中浮现出一个巨大的影子，地面在颤抖。' }
         ],
+        npcs: [
+            { id: 'npc_lost_miner', name: '迷途矿工', dialogueTreeId: 'npc_lost_miner', spriteKey: 'npc_lost_miner', tileX: 150, tileY: 40, regionId: 'dark_cave', flavorText: '一盏摇曳的油灯下，满脸煤灰的矿工蜷坐在岩壁边。' }
+        ],
         ambientFeatures: ['stalactites', 'glowing_mushrooms']
     },
     {
@@ -122,6 +134,9 @@ const REGIONS = [
             { id: 'sc_herb1', type: 'collectible', itemId: 'herb_starbloom', tileX: 100, tileY: 180, promptText: '采集星花 [E]', flavorText: '海风中摇曳着一朵白色的星花。' },
             { id: 'sc_coin2', type: 'collectible', itemId: 'coin_bronze', tileX: 30, tileY: 150, promptText: '捡起铜币 [E]', flavorText: '礁石缝隙中卡着一枚铜币。' },
             { id: 'sc_herb2', type: 'collectible', itemId: 'herb_moonpetal', tileX: 170, tileY: 140, promptText: '采集月瓣草 [E]', flavorText: '月光照耀的岩石上生长着银色花朵。' }
+        ],
+        npcs: [
+            { id: 'npc_fisherman', name: '渔夫', dialogueTreeId: 'npc_fisherman', spriteKey: 'npc_fisherman', tileX: 60, tileY: 120, regionId: 'silver_coast', flavorText: '银色浪涛边，一位皮肤黝黑的渔夫正修补着渔网。' }
         ],
         ambientFeatures: ['waves', 'seashells']
     }

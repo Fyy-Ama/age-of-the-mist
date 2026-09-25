@@ -14,8 +14,11 @@ class UIManager {
         this._settings = { showFPS: true, controlsHint: true, dayNightSpeed: 1 };
         this._fps = 0;
         this._gameRef = null;
+        this._dialogueChoiceIndex = 0;
+        this._dialogueVisibleChoices = [];
 
         this._bindEvents();
+        this._bindDialogueKeys();
     }
 
     setGameRef(game) {
@@ -73,6 +76,22 @@ class UIManager {
 
         this._eventBus.on('player:respawned', () => {
             this.updateHP(PLAYER_MAX_HP, PLAYER_MAX_HP);
+        });
+
+        this._eventBus.on('dialogue:started', (data) => {
+            this._onDialogueStarted(data);
+        });
+
+        this._eventBus.on('dialogue:node', (data) => {
+            this._onDialogueNode(data);
+        });
+
+        this._eventBus.on('dialogue:textUpdate', (data) => {
+            this._onDialogueTextUpdate(data);
+        });
+
+        this._eventBus.on('dialogue:ended', () => {
+            this._onDialogueEnded();
         });
     }
 
@@ -279,6 +298,9 @@ class UIManager {
 
         const settingsOverlay = document.getElementById('settings-overlay');
         if (settingsOverlay) settingsOverlay.style.display = 'none';
+
+        const dialoguePanel = document.getElementById('dialogue-panel');
+        if (dialoguePanel) dialoguePanel.style.display = 'none';
 
         return prev;
     }
@@ -879,6 +901,189 @@ class UIManager {
         ctx.arc(px, py, 3, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+    }
+
+    // ===== Dialogue UI =====
+
+    _bindDialogueKeys() {
+        document.addEventListener('keydown', (e) => {
+            if (this._activePanel !== 'dialogue') return;
+            const dm = this._gameRef && this._gameRef.dialogueManager;
+            if (!dm || !dm.isActive()) return;
+            if (e.repeat) return;
+
+            const key = e.key.toLowerCase();
+            if (key === 'escape' || key === 'enter' || key === ' ' || key === 'e' ||
+                key === 'arrowup' || key === 'arrowdown' || (key >= '1' && key <= '9')) {
+                e.preventDefault();
+            }
+
+            if (key === 'escape') {
+                dm.end();
+                return;
+            }
+
+            const visible = dm.getVisibleChoices();
+
+            if (key >= '1' && key <= '9') {
+                const idx = parseInt(key, 10) - 1;
+                if (idx < visible.length) {
+                    dm.skipText();
+                    dm.selectChoice(visible[idx].index);
+                }
+                return;
+            }
+
+            if (key === 'arrowup' || key === 'arrowdown') {
+                if (visible.length > 0) {
+                    const dir = key === 'arrowup' ? -1 : 1;
+                    this._dialogueChoiceIndex = (this._dialogueChoiceIndex + dir + visible.length) % visible.length;
+                    this._updateDialogueChoiceHighlight();
+                }
+                return;
+            }
+
+            if (key === 'enter' || key === ' ' || key === 'e') {
+                if (!dm.isTextComplete()) {
+                    dm.skipText();
+                    return;
+                }
+                if (visible.length > 0) {
+                    const sel = visible[Math.min(this._dialogueChoiceIndex, visible.length - 1)];
+                    dm.selectChoice(sel.index);
+                } else {
+                    dm.advance();
+                }
+            }
+        });
+    }
+
+    _onDialogueStarted(data) {
+        let panel = document.getElementById('dialogue-panel');
+        if (!panel) {
+            panel = this._createDialoguePanel();
+        }
+        this.hideInteractionPrompt();
+        this._activePanel = 'dialogue';
+        this._renderDialoguePortrait(data.treeId);
+        panel.style.display = 'flex';
+        panel.classList.remove('fade-out');
+        panel.classList.add('fade-in');
+    }
+
+    _onDialogueNode(data) {
+        const nameEl = document.getElementById('dialogue-name');
+        const textEl = document.getElementById('dialogue-text');
+        const hintEl = document.getElementById('dialogue-hint');
+        if (nameEl) nameEl.textContent = data.speaker || '';
+        if (textEl) textEl.textContent = '';
+        this._renderDialogueChoices(data.choices || []);
+        if (hintEl) hintEl.textContent = '\u25BC \u7A7A\u683C / \u70B9\u51FB\u7EE7\u7EED';
+    }
+
+    _onDialogueTextUpdate(data) {
+        const textEl = document.getElementById('dialogue-text');
+        if (textEl) textEl.textContent = data.displayedText;
+        if (data.complete) {
+            const choicesEl = document.getElementById('dialogue-choices');
+            const hintEl = document.getElementById('dialogue-hint');
+            if (choicesEl && this._dialogueVisibleChoices.length > 0) {
+                choicesEl.style.display = 'flex';
+            }
+            if (hintEl) {
+                hintEl.textContent = this._dialogueVisibleChoices.length > 0
+                    ? '\u2191\u2193 \u9009\u62E9 \u00B7 \u56DE\u8F66\u786E\u8BA4 \u00B7 \u6570\u5B57\u952E\u5FEB\u9009 \u00B7 ESC \u79BB\u5F00'
+                    : '\u25BC \u7A7A\u683C / \u70B9\u51FB\u7EE7\u7EED';
+            }
+        }
+    }
+
+    _onDialogueEnded() {
+        const panel = document.getElementById('dialogue-panel');
+        if (panel) {
+            panel.classList.remove('fade-in');
+            panel.style.display = 'none';
+        }
+        if (this._activePanel === 'dialogue') {
+            this._activePanel = null;
+        }
+    }
+
+    _createDialoguePanel() {
+        const panel = document.createElement('div');
+        panel.id = 'dialogue-panel';
+        panel.className = 'dialogue-panel parchment-panel';
+        panel.innerHTML = `
+            <div class="dialogue-portrait-frame">
+                <canvas id="dialogue-portrait" class="dialogue-portrait" width="96" height="128"></canvas>
+            </div>
+            <div class="dialogue-body">
+                <div id="dialogue-name" class="dialogue-name"></div>
+                <div id="dialogue-text" class="dialogue-text"></div>
+                <div id="dialogue-choices" class="dialogue-choices"></div>
+                <div id="dialogue-hint" class="dialogue-hint"></div>
+            </div>
+        `;
+        document.getElementById('ui-layer').appendChild(panel);
+
+        const body = panel.querySelector('.dialogue-body');
+        body.addEventListener('click', (e) => {
+            if (e.target.closest('.dialogue-choice')) return;
+            const dm = this._gameRef && this._gameRef.dialogueManager;
+            if (!dm || !dm.isActive()) return;
+            if (!dm.isTextComplete()) {
+                dm.skipText();
+            } else if (dm.getVisibleChoices().length === 0) {
+                dm.advance();
+            }
+        });
+
+        return panel;
+    }
+
+    _renderDialoguePortrait(treeId) {
+        const canvas = document.getElementById('dialogue-portrait');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const sprite = getNpcSpriteCanvas(treeId);
+        const scale = 3;
+        const dw = sprite.width * scale;
+        const dh = sprite.height * scale;
+        ctx.drawImage(sprite, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+    }
+
+    _renderDialogueChoices(choices) {
+        const container = document.getElementById('dialogue-choices');
+        if (!container) return;
+        container.innerHTML = '';
+        container.style.display = 'none';
+        this._dialogueVisibleChoices = choices;
+        this._dialogueChoiceIndex = 0;
+
+        choices.forEach((c, i) => {
+            const btn = document.createElement('div');
+            btn.className = 'dialogue-choice';
+            btn.textContent = `${i + 1}. ${c.text}`;
+            btn.addEventListener('click', () => {
+                const dm = this._gameRef && this._gameRef.dialogueManager;
+                if (!dm || !dm.isActive()) return;
+                dm.skipText();
+                dm.selectChoice(c.index);
+            });
+            btn.addEventListener('mouseenter', () => {
+                this._dialogueChoiceIndex = i;
+                this._updateDialogueChoiceHighlight();
+            });
+            container.appendChild(btn);
+        });
+        this._updateDialogueChoiceHighlight();
+    }
+
+    _updateDialogueChoiceHighlight() {
+        const btns = document.querySelectorAll('#dialogue-choices .dialogue-choice');
+        btns.forEach((b, i) => b.classList.toggle('selected', i === this._dialogueChoiceIndex));
     }
 
     // ===== Hide All =====

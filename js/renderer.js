@@ -134,6 +134,142 @@ function getKnightSpriteCanvas(direction, frameName) {
     return cv;
 }
 
+// NPC 独特像素画：12 列 × 16 行网格，每格 2px → 24×32
+const NPC_SPRITE_DEFS = {
+    npc_old_traveler: {
+        palette: { H: '#8a6440', K: '#4a3524', C: '#6b4c33', W: '#d8d0c0', S: '#241a12', T: '#9a7a44', B: '#2a1e16' },
+        rows: [
+            '....HHHH....',
+            '...HHHHHH...',
+            '..HHHHHHHH..',
+            '..HHSSSSHH.T',
+            '..HSWWWWSH.T',
+            '..HSWWWWSH.T',
+            '.KCCCCCCCK.T',
+            'KCCCCCCCCK.T',
+            'KCCCCCCCCK.T',
+            '.KCCCCCCCK.T',
+            '.KCCCCCCCK.T',
+            '..KCCCCCK..T',
+            '..KCCCCCK..T',
+            '..KK..KK...T',
+            '..BB..BB....',
+            '.BBB..BBB...'
+        ]
+    },
+    npc_hermit_herbalist: {
+        palette: { H: '#4a6b3a', K: '#243a1f', C: '#33522b', A: '#ffb347', S: '#1a2414', P: '#8a6a3a', B: '#1f2a18' },
+        rows: [
+            '....HHHH....',
+            '...HHHHHH...',
+            '..HHHHHHHH..',
+            '..HHSSSSHH..',
+            '..HSAASAAH..',
+            '..HSSSSSSH..',
+            '.KCCCCCCCK..',
+            'KCCCCCCCCK..',
+            'KCCCCCCCCK..',
+            '.KCPPPPCK...',
+            '.KCCCCCCCK..',
+            '..KCCCCCK...',
+            '..KCCCCCK...',
+            '..KK..KK....',
+            '..BB..BB....',
+            '.BBB..BBB...'
+        ]
+    },
+    npc_stele_warden: {
+        palette: { H: '#7a7a88', K: '#3a3a46', C: '#5a5a68', G: '#66d9ff', S: '#2a2a34', B: '#2a2a34' },
+        rows: [
+            '..HHHHHHHH..',
+            '..HHHHHHHH..',
+            '..HGGHHGGH..',
+            '..HHHHHHHH..',
+            '...HHHHHH...',
+            'KHHHHHHHHHHK',
+            'KCCCCCCCCCCK',
+            'KCCCGGGGCCCK',
+            'KCCCGGGGCCCK',
+            'KCCCCCCCCCCK',
+            '.KCCCCCCCCK.',
+            '.KCCCCCCCCK.',
+            '..KKCCCCKK..',
+            '..KK....KK..',
+            '..BB....BB..',
+            '.BBB....BBB.'
+        ]
+    },
+    npc_lost_miner: {
+        palette: { H: '#c0a060', K: '#3a3a44', C: '#6b5a44', L: '#ffe066', S: '#2a2018', A: '#d0a878', T: '#8a6a3a', M: '#9a9aa4', B: '#2a2018' },
+        rows: [
+            '...HHHHHH...',
+            '..HHHHHHHH..',
+            '..HLLLLLLH..',
+            '..HAAAAAAH..',
+            '..HASAASAH..',
+            '...AAAAAA...',
+            '.KCCCCCCCK..',
+            'KCCCCCCCCK.T',
+            'KCCCCCCCCKMT',
+            '.KCCCCCCCK.T',
+            '.KCCCCCCCK.T',
+            '..KCCCCCK..T',
+            '..KCCCCCK..T',
+            '..KK..KK...T',
+            '..BB..BB....',
+            '.BBB..BBB...'
+        ]
+    },
+    npc_fisherman: {
+        palette: { H: '#5a7a8a', K: '#2a3a44', C: '#4a6a7a', S: '#c09878', A: '#2a2018', N: '#d8d0b0', B: '#2a2018', R: '#8a6a3a' },
+        rows: [
+            '....HHHH....',
+            '...HHHHHH...',
+            '..HHHHHHHH..',
+            'HHHHHHHHHHHH',
+            '...SSSSSS...',
+            '...SASSAS...',
+            '....SSSS....',
+            '.KCCCCCCCK.R',
+            'KCCCCCCCCK.R',
+            'KCCNNNNCCK.R',
+            '.KCCCCCCCK.R',
+            '..KCCCCCK..R',
+            '..KCCCCCK..R',
+            '..KK..KK...R',
+            '..BB..BB....',
+            '.BBB..BBB...'
+        ]
+    }
+};
+
+const _npcSpriteCache = {};
+
+function getNpcSpriteCanvas(spriteKey) {
+    if (_npcSpriteCache[spriteKey]) return _npcSpriteCache[spriteKey];
+
+    const def = NPC_SPRITE_DEFS[spriteKey];
+    const cv = document.createElement('canvas');
+    cv.width = 24;
+    cv.height = 32;
+    if (!def) {
+        _npcSpriteCache[spriteKey] = cv;
+        return cv;
+    }
+    const c = cv.getContext('2d');
+    for (let r = 0; r < def.rows.length; r++) {
+        const row = def.rows[r];
+        for (let col = 0; col < 12; col++) {
+            const ch = row[col];
+            if (!ch || ch === '.' || !def.palette[ch]) continue;
+            c.fillStyle = def.palette[ch];
+            c.fillRect(col * 2, r * 2, 2, 2);
+        }
+    }
+    _npcSpriteCache[spriteKey] = cv;
+    return cv;
+}
+
 class Renderer {
     constructor(canvas, ctx) {
         this.canvas = canvas;
@@ -145,6 +281,7 @@ class Renderer {
         
         this._renderGround(camera, worldMap);
         this._renderInteractables(camera, worldMap);
+        this._renderNpcs(camera, worldMap);
         this._renderGuardians(camera, worldMap);
         this._renderPlayer(camera, player);
         if (visualEffects) {
@@ -185,6 +322,60 @@ class Renderer {
         const frameName = player.walkFrame === 1 ? 'walk' : 'stand';
         const sprite = getKnightSpriteCanvas(player.facingDirection, frameName);
         this.ctx.drawImage(sprite, Math.round(screenPos.x) + 3, Math.round(screenPos.y));
+    }
+
+    _renderNpcs(camera, worldMap) {
+        const npcs = worldMap.getAllNpcs();
+        const viewport = camera.getViewport();
+        const t = performance.now() / 1000;
+
+        for (const npc of npcs) {
+            const b = npc.getBounds();
+            if (!aabbOverlap(b, viewport)) continue;
+
+            const sp = camera.worldToScreen(b.x, b.y);
+            const drawX = Math.round(sp.x) + 4;
+            const drawY = Math.round(sp.y);
+            const cx = sp.x + b.w / 2;
+
+            // 脚下阴影
+            this.ctx.globalAlpha = 0.28;
+            this.ctx.fillStyle = '#000';
+            this.ctx.beginPath();
+            this.ctx.ellipse(cx, sp.y + 30, 10, 4, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.globalAlpha = 1.0;
+
+            // 柔和环境光晕
+            const glow = 0.10 + 0.05 * Math.sin(t * 1.6 + cx * 0.02);
+            this.ctx.globalAlpha = glow;
+            this.ctx.fillStyle = '#ffd700';
+            this.ctx.beginPath();
+            this.ctx.arc(cx, sp.y + 16, 20, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.globalAlpha = 1.0;
+
+            // 像素立绘
+            const sprite = getNpcSpriteCanvas(npc.spriteKey);
+            this.ctx.drawImage(sprite, drawX, drawY);
+
+            // 头顶任务标记
+            const marker = npc.getMarker();
+            if (marker) {
+                const bob = Math.sin(t * 3) * 2;
+                const mx = cx;
+                const my = sp.y - 8 + bob;
+                this.ctx.save();
+                this.ctx.font = 'bold 16px Georgia, serif';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.shadowColor = marker.color;
+                this.ctx.shadowBlur = 8;
+                this.ctx.fillStyle = marker.color;
+                this.ctx.fillText(marker.char, mx, my);
+                this.ctx.restore();
+            }
+        }
     }
 
     _renderGuardians(camera, worldMap) {

@@ -53,6 +53,12 @@ class InputManager {
         this._mouseClicked = false;
     }
 
+    syncState() {
+        this._keysPrevious = new Set(this._keysDown);
+        this._keysPressed.clear();
+        this._mouseClicked = false;
+    }
+
     isKeyDown(key) {
         return this._keysDown.has(key.toLowerCase());
     }
