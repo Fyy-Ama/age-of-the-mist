@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迷雾纪元 - Age of the Mist</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="game-ui">
+            <div id="ui-layer">
+                <div id="quickbar" class="quickbar"></div>
+                <div id="interaction-prompt" class="interaction-prompt" style="display:none;"></div>
+                <div id="region-popup" class="region-popup" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/event-bus.js"></script>
+    <script src="js/input-manager.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/collision.js"></script>
+    <script src="js/region-manager.js"></script>
+    <script src="js/map-data.js"></script>
+    <script src="js/item-data.js"></script>
+    <script src="js/entity.js"></script>
+    <script src="js/world-map.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/discovery-log.js"></script>
+    <script src="js/ui-manager.js"></script>
+    <script src="js/save-manager.js"></script>
+    <script src="js/day-night-cycle.js"></script>
+    <script src="js/world-events.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/game.js"></script>
+    <script>
+        // Initialize and start the game
+        const game = new Game();
+        game.init().then(() => {
+            game.start();
+        }).catch(error => {
+            console.error('Failed to initialize game:', error);
+        });
+    </script>
+</body>
+</html>

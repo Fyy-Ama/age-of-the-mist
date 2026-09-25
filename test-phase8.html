@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Phase 8 Tests - Performance & Robustness</title>
+    <style>
+        body { font-family: monospace; background: #1a1a1a; color: #ccc; padding: 20px; }
+        h1 { color: #f4e8c1; }
+        .pass { color: #4caf50; }
+        .fail { color: #f44336; }
+        .section { color: #ffd700; margin-top: 16px; }
+        .summary { margin-top: 20px; font-size: 1.2em; color: #fff; }
+    </style>
+</head>
+<body>
+    <h1>Phase 8 Tests - Performance & Robustness</h1>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/event-bus.js"></script>
+    <script src="js/input-manager.js"></script>
+    <script src="js/collision.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/map-data.js"></script>
+    <script src="js/region-manager.js"></script>
+    <script src="js/item-data.js"></script>
+    <script src="js/entity.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/discovery-log.js"></script>
+    <script src="js/world-map.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/day-night-cycle.js"></script>
+    <script src="js/world-events.js"></script>
+    <script src="js/save-manager.js"></script>
+    <script src="js/ui-manager.js"></script>
+    <script src="js/game.js"></script>
+    <script>
+        let passed = 0;
+        let failed = 0;
+        const resultsEl = document.getElementById('results');
+
+        function section(name) {
+            const div = document.createElement('div');
+            div.className = 'section';
+            div.textContent = '--- ' + name + ' ---';
+            resultsEl.appendChild(div);
+        }
+
+        function test(name, fn) {
+            try {
+                fn();
+                passed++;
+                const div = document.createElement('div');
+                div.className = 'pass';
+                div.textContent = 'PASS: ' + name;
+                resultsEl.appendChild(div);
+            } catch (e) {
+                failed++;
+                const div = document.createElement('div');
+                div.className = 'fail';
+                div.textContent = 'FAIL: ' + name + ' - ' + e.message;
+                resultsEl.appendChild(div);
+            }
+        }
+
+        function assert(cond, msg) {
+            if (!cond) throw new Error(msg || 'Assertion failed');
+        }
+
+        // ===== Renderer Optimization =====
+        section('Renderer Optimization');
+
+        test('Renderer._renderGround does not call camera.worldToScreen per tile', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = CANVAS_W;
+            canvas.height = CANVAS_H;
+            const ctx = canvas.getContext('2d');
+            const renderer = new Renderer(canvas, ctx);
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const camera = new Camera(CANVAS_W, CANVAS_H, WORLD_COLS * TILE_SIZE, WORLD_ROWS * TILE_SIZE);
+            camera.x = 1000;
+            camera.y = 1000;
+
+            let worldToScreenCalls = 0;
+            const origFn = camera.worldToScreen.bind(camera);
+            camera.worldToScreen = function(wx, wy) {
+                worldToScreenCalls++;
+                return origFn(wx, wy);
+            };
+
+            renderer._renderGround(camera, wm);
+            assert(worldToScreenCalls === 0, 'worldToScreen should not be called in optimized renderer, got ' + worldToScreenCalls + ' calls');
+        });
+
+        test('Renderer._renderGround does not call worldMap.getTile per tile', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = CANVAS_W;
+            canvas.height = CANVAS_H;
+            const ctx = canvas.getContext('2d');
+            const renderer = new Renderer(canvas, ctx);
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const camera = new Camera(CANVAS_W, CANVAS_H, WORLD_COLS * TILE_SIZE, WORLD_ROWS * TILE_SIZE);
+            camera.x = 1000;
+            camera.y = 1000;
+
+            let getTileCalls = 0;
+            const origFn = wm.getTile.bind(wm);
+            wm.getTile = function(wx, wy) {
+                getTileCalls++;
+                return origFn(wx, wy);
+            };
+
+            renderer._renderGround(camera, wm);
+            assert(getTileCalls === 0, 'getTile should not be called in optimized renderer, got ' + getTileCalls + ' calls');
+        });
+
+        test('Renderer._renderGround produces correct tile count for viewport', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 640;
+            canvas.height = 480;
+            const ctx = canvas.getContext('2d');
+            const renderer = new Renderer(canvas, ctx);
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const camera = new Camera(640, 480, WORLD_COLS * TILE_SIZE, WORLD_ROWS * TILE_SIZE);
+            camera.x = 0;
+            camera.y = 0;
+
+            let fillRectCalls = 0;
+            const origFillRect = ctx.fillRect.bind(ctx);
+            ctx.fillRect = function(x, y, w, h) {
+                fillRectCalls++;
+                return origFillRect(x, y, w, h);
+            };
+
+            renderer._renderGround(camera, wm);
+            const expectedCols = Math.ceil(640 / TILE_SIZE) + 1;
+            const expectedRows = Math.ceil(480 / TILE_SIZE) + 1;
+            const expected = expectedCols * expectedRows;
+            assert(fillRectCalls > 0, 'Should call fillRect for tiles');
+            assert(fillRectCalls <= (expectedCols + 1) * (expectedRows + 1), 'Should render approximately viewport-sized tile count');
+        });
+
+        // ===== Minimap Cache =====
+        section('Minimap Cache');
+
+        test('UIManager has invalidateMinimapCache method', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            assert(typeof ui.invalidateMinimapCache === 'function', 'Should have invalidateMinimapCache method');
+        });
+
+        test('UIManager renderMinimap creates offscreen cache', () => {
+            if (!document.getElementById('ui-layer')) {
+                const layer = document.createElement('div');
+                layer.id = 'ui-layer';
+                document.body.appendChild(layer);
+            }
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            const rm = new RegionManager();
+            const dl = new DiscoveryLog(bus);
+            dl.record('location', 'travelers_camp', 'desc');
+
+            ui.renderMinimap(rm, dl, 3200, 3200);
+            assert(ui._minimapCache !== null && ui._minimapCache !== undefined, 'Should create minimap cache canvas');
+            assert(ui._minimapCache instanceof HTMLCanvasElement, 'Cache should be a canvas element');
+        });
+
+        test('UIManager renderMinimap does not rebuild cache on every call', () => {
+            if (!document.getElementById('ui-layer')) {
+                const layer = document.createElement('div');
+                layer.id = 'ui-layer';
+                document.body.appendChild(layer);
+            }
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            const rm = new RegionManager();
+            const dl = new DiscoveryLog(bus);
+            dl.record('location', 'travelers_camp', 'desc');
+
+            ui.renderMinimap(rm, dl, 3200, 3200);
+            const firstCache = ui._minimapCache;
+
+            ui.renderMinimap(rm, dl, 3250, 3250);
+            assert(ui._minimapCache === firstCache, 'Cache canvas should be reused when discoveries unchanged');
+        });
+
+        test('UIManager invalidateMinimapCache forces rebuild', () => {
+            if (!document.getElementById('ui-layer')) {
+                const layer = document.createElement('div');
+                layer.id = 'ui-layer';
+                document.body.appendChild(layer);
+            }
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            const rm = new RegionManager();
+            const dl = new DiscoveryLog(bus);
+
+            ui.renderMinimap(rm, dl, 3200, 3200);
+            const countBefore = ui._minimapDiscoveryCount;
+
+            ui.invalidateMinimapCache();
+            assert(ui._minimapDiscoveryCount === -1, 'Should reset discovery count to -1');
+
+            ui.renderMinimap(rm, dl, 3200, 3200);
+            assert(ui._minimapDiscoveryCount === 0, 'Should rebuild cache after invalidation');
+        });
+
+        // ===== Per-frame Allocation Reduction =====
+        section('Allocation Reduction');
+
+        test('Game uses scalar _prevPlayerX/_prevPlayerY instead of object', () => {
+            const game = new Game();
+            assert(typeof game._prevPlayerX === 'number', '_prevPlayerX should be a number');
+            assert(typeof game._prevPlayerY === 'number', '_prevPlayerY should be a number');
+            assert(game._prevPlayerPos === undefined, '_prevPlayerPos object should not exist');
+        });
+
+        // ===== Corrupt Save Handling =====
+        section('Corrupt Save Handling');
+
+        test('Game._restoreSave handles null data gracefully', () => {
+            const game = new Game();
+            game.player = new Player(100 * TILE_SIZE, 100 * TILE_SIZE);
+            game.inventory = new Inventory(new EventBus());
+            game.discoveryLog = new DiscoveryLog(new EventBus());
+            game.worldMap = new WorldMap(generateMapData(), new RegionManager());
+            game.dayNightCycle = new DayNightCycle(new EventBus());
+            game.worldEvents = new WorldEvents(new EventBus());
+            game.uiManager = new UIManager(new EventBus());
+
+            let threw = false;
+            try {
+                game._restoreSave(null);
+            } catch (e) {
+                threw = true;
+            }
+            assert(!threw, 'Should not throw on null data');
+        });
+
+        test('Game._restoreSave handles wrong version gracefully', () => {
+            const game = new Game();
+            game.player = new Player(100 * TILE_SIZE, 100 * TILE_SIZE);
+            game.inventory = new Inventory(new EventBus());
+            game.discoveryLog = new DiscoveryLog(new EventBus());
+            game.worldMap = new WorldMap(generateMapData(), new RegionManager());
+            game.dayNightCycle = new DayNightCycle(new EventBus());
+            game.worldEvents = new WorldEvents(new EventBus());
+            game.uiManager = new UIManager(new EventBus());
+
+            let threw = false;
+            try {
+                game._restoreSave({ version: 999 });
+            } catch (e) {
+                threw = true;
+            }
+            assert(!threw, 'Should not throw on wrong version');
+        });
+
+        test('Game._restoreSave handles partial data gracefully', () => {
+            const game = new Game();
+            game.player = new Player(100 * TILE_SIZE, 100 * TILE_SIZE);
+            game.inventory = new Inventory(new EventBus());
+            game.discoveryLog = new DiscoveryLog(new EventBus());
+            game.worldMap = new WorldMap(generateMapData(), new RegionManager());
+            game.dayNightCycle = new DayNightCycle(new EventBus());
+            game.worldEvents = new WorldEvents(new EventBus());
+            game.uiManager = new UIManager(new EventBus());
+
+            let threw = false;
+            try {
+                game._restoreSave({ version: 1, player: { x: 50, y: 50 } });
+            } catch (e) {
+                threw = true;
+            }
+            assert(!threw, 'Should not throw on partial data');
+            assert(game.player.x === 50, 'Should restore available player data');
+        });
+
+        // ===== Rapid Panel Toggling =====
+        section('Rapid Panel Toggling');
+
+        test('Rapid closeActivePanel calls do not throw', () => {
+            if (!document.getElementById('ui-layer')) {
+                const layer = document.createElement('div');
+                layer.id = 'ui-layer';
+                document.body.appendChild(layer);
+            }
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui.setGameRef({ saveManager: { markDirty() {} } });
+
+            let threw = false;
+            try {
+                for (let i = 0; i < 50; i++) {
+                    ui.closeActivePanel();
+                }
+            } catch (e) {
+                threw = true;
+            }
+            assert(!threw, 'Should not throw on rapid closeActivePanel calls');
+        });
+
+        test('Rapid showPauseMenu/closeActivePanel cycles do not leak DOM', () => {
+            if (!document.getElementById('ui-layer')) {
+                const layer = document.createElement('div');
+                layer.id = 'ui-layer';
+                document.body.appendChild(layer);
+            }
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui.setGameRef({ saveManager: { markDirty() {} } });
+
+            for (let i = 0; i < 20; i++) {
+                ui.showPauseMenu();
+                ui.closeActivePanel();
+            }
+
+            const overlays = document.querySelectorAll('.pause-overlay');
+            assert(overlays.length <= 1, 'Should not create duplicate pause overlays, got ' + overlays.length);
+        });
+
+        test('Rapid showSettings/closeActivePanel cycles do not leak DOM', () => {
+            if (!document.getElementById('ui-layer')) {
+                const layer = document.createElement('div');
+                layer.id = 'ui-layer';
+                document.body.appendChild(layer);
+            }
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui.setGameRef({ saveManager: { markDirty() {} } });
+
+            for (let i = 0; i < 20; i++) {
+                ui.showSettings();
+                ui.closeActivePanel();
+            }
+
+            const overlays = document.querySelectorAll('#settings-overlay');
+            assert(overlays.length <= 1, 'Should not create duplicate settings overlays, got ' + overlays.length);
+        });
+
+        // ===== Game State Integrity =====
+        section('Game State Integrity');
+
+        test('Game has invalidateMinimapCache call in startNewGame', () => {
+            const game = new Game();
+            const src = game.startNewGame.toString();
+            assert(src.includes('invalidateMinimapCache'), 'startNewGame should call invalidateMinimapCache');
+        });
+
+        test('Game has invalidateMinimapCache call in resetWorld', () => {
+            const game = new Game();
+            const src = game.resetWorld.toString();
+            assert(src.includes('invalidateMinimapCache'), 'resetWorld should call invalidateMinimapCache');
+        });
+
+        test('Game continueGame has try-catch for corrupt save', () => {
+            const game = new Game();
+            const src = game.continueGame.toString();
+            assert(src.includes('try') && src.includes('catch'), 'continueGame should have try-catch for error handling');
+        });
+
+        // ===== Summary =====
+        const summaryEl = document.getElementById('summary');
+        const total = passed + failed;
+        summaryEl.textContent = 'Results: ' + passed + '/' + total + ' passed, ' + failed + ' failed';
+        if (failed === 0) {
+            summaryEl.textContent += '\nAll tests passed!';
+        }
+        console.log('Phase 8 Tests: ' + passed + '/' + total + ' passed');
+    </script>
+</body>
+</html>

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Phase 4 Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f4e8c1;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .fail {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Phase 4 测试报告</h1>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/event-bus.js"></script>
+    <script src="js/input-manager.js"></script>
+    <script src="js/collision.js"></script>
+    <script src="js/region-manager.js"></script>
+    <script src="js/map-data.js"></script>
+    <script src="js/item-data.js"></script>
+    <script src="js/entity.js"></script>
+    <script src="js/world-map.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/discovery-log.js"></script>
+    <script src="js/save-manager.js"></script>
+    <script>
+        const results = [];
+        let totalTests = 0;
+        let passedTests = 0;
+
+        function test(name, fn) {
+            totalTests++;
+            try {
+                fn();
+                passedTests++;
+                results.push({ name, passed: true, error: null });
+            } catch (error) {
+                results.push({ name, passed: false, error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+
+        // === SaveManager constructor ===
+
+        test('SaveManager constructor', () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            assert(sm._dirty === false, 'Should start not dirty');
+            assert(sm._useIndexedDB === true, 'Should default to IndexedDB');
+        });
+
+        test('SaveManager markDirty', () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            sm.markDirty();
+            assert(sm._dirty === true, 'Should be dirty after markDirty');
+        });
+
+        test('SaveManager autoSaveCheck - not dirty', () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            assert(sm.autoSaveCheck(Date.now(), false) === false, 'Should not save when not dirty');
+        });
+
+        test('SaveManager autoSaveCheck - dirty and enough time', () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            sm.markDirty();
+            sm._lastSaveTime = Date.now() - 6000;
+            assert(sm.autoSaveCheck(Date.now(), false) === true, 'Should save when dirty and enough time');
+        });
+
+        test('SaveManager autoSaveCheck - dirty but throttled', () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            sm.markDirty();
+            sm._lastSaveTime = Date.now();
+            assert(sm.autoSaveCheck(Date.now(), false) === false, 'Should not save when throttled');
+        });
+
+        test('SaveManager autoSaveCheck - position throttle', () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            sm.markDirty();
+            sm._lastSaveTime = Date.now() - 6000;
+            sm._lastPositionSaveTime = Date.now();
+            assert(sm.autoSaveCheck(Date.now(), true) === false, 'Should throttle position saves');
+        });
+
+        test('SaveManager autoSaveCheck - position throttle expired', () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            sm.markDirty();
+            sm._lastSaveTime = Date.now() - 6000;
+            sm._lastPositionSaveTime = Date.now() - 31000;
+            assert(sm.autoSaveCheck(Date.now(), true) === true, 'Should save when position throttle expired');
+        });
+
+        // === SaveManager localStorage fallback ===
+
+        test('SaveManager localStorage save and load', async () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            sm._useIndexedDB = false;
+            await sm.init();
+
+            const testData = { version: 1, player: { x: 100, y: 200 }, inventory: [], discoveryLog: [] };
+            const saved = await sm.save(testData);
+            assert(saved === true, 'Save should succeed');
+
+            const loaded = await sm.load();
+            assert(loaded !== null, 'Load should return data');
+            assert(loaded.version === 1, 'Version should match');
+            assert(loaded.player.x === 100, 'Player x should match');
+            assert(loaded.player.y === 200, 'Player y should match');
+
+            localStorage.removeItem('age_of_mist_save_slot_0');
+        });
+
+        test('SaveManager load returns null when no save', async () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            sm._useIndexedDB = false;
+            await sm.init();
+
+            const loaded = await sm.load();
+            assert(loaded === null, 'Should return null when no save exists');
+        });
+
+        test('SaveManager hasSave', async () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            sm._useIndexedDB = false;
+            await sm.init();
+
+            let has = await sm.hasSave();
+            assert(has === false, 'Should not have save initially');
+
+            await sm.save({ version: 1, test: true });
+            has = await sm.hasSave();
+            assert(has === true, 'Should have save after saving');
+
+            await sm.clearSave();
+            has = await sm.hasSave();
+            assert(has === false, 'Should not have save after clearing');
+        });
+
+        test('SaveManager clearSave', async () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            sm._useIndexedDB = false;
+            await sm.init();
+
+            await sm.save({ version: 1, test: true });
+            await sm.clearSave();
+            const loaded = await sm.load();
+            assert(loaded === null, 'Should be null after clear');
+        });
+
+        // === Event binding ===
+
+        test('SaveManager marks dirty on item:collected', () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            sm._bindEvents();
+            sm.markDirty = function() { this._dirty = true; };
+            bus.emit('item:collected', { itemId: 'test' });
+            assert(sm._dirty === true, 'Should be dirty after item collected');
+        });
+
+        test('SaveManager marks dirty on region:entered', () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            sm._bindEvents();
+            sm.markDirty = function() { this._dirty = true; };
+            bus.emit('region:entered', { region: { id: 'test' } });
+            assert(sm._dirty === true, 'Should be dirty after region entered');
+        });
+
+        // === Save data structure ===
+
+        test('Save data has correct structure', () => {
+            const bus = new EventBus();
+            const inv = new Inventory(bus);
+            const log = new DiscoveryLog(bus);
+            inv.addItem('herb_moonpetal');
+            log.record('location', 'travelers_camp', 'A warm camp');
+
+            const data = {
+                version: 1,
+                savedAt: Date.now(),
+                player: { x: 100, y: 200, facingDirection: 'down', currentRegionId: 'travelers_camp' },
+                inventory: inv.export(),
+                discoveryLog: log.export(),
+                worldStates: {}
+            };
+
+            assert(data.version === 1, 'Should have version');
+            assert(typeof data.savedAt === 'number', 'Should have savedAt');
+            assert(typeof data.player === 'object', 'Should have player');
+            assert(Array.isArray(data.inventory), 'Should have inventory array');
+            assert(Array.isArray(data.discoveryLog), 'Should have discoveryLog array');
+            assert(typeof data.worldStates === 'object', 'Should have worldStates');
+            assert(data.inventory.length === 1, 'Should have 1 item');
+            assert(data.discoveryLog.length === 1, 'Should have 1 discovery');
+        });
+
+        // === IndexedDB availability ===
+
+        test('IndexedDB is available in this environment', () => {
+            assert(typeof indexedDB !== 'undefined', 'IndexedDB should be available');
+        });
+
+        test('SaveManager init succeeds', async () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            await sm.init();
+            assert(sm._db !== null || sm._useIndexedDB === false, 'Should init successfully');
+        });
+
+        test('SaveManager IndexedDB save and load', async () => {
+            const bus = new EventBus();
+            const sm = new SaveManager(bus);
+            await sm.init();
+
+            if (!sm._useIndexedDB) {
+                results[results.length - 1].name += ' (skipped - no IndexedDB)';
+                return;
+            }
+
+            const testData = { version: 1, player: { x: 300, y: 400 } };
+            const saved = await sm.save(testData);
+            assert(saved === true, 'IndexedDB save should succeed');
+
+            const loaded = await sm.load();
+            assert(loaded !== null, 'IndexedDB load should return data');
+            assert(loaded.player.x === 300, 'Player x should match');
+
+            await sm.clearSave();
+        });
+
+        // Display results
+        const resultsDiv = document.getElementById('results');
+        results.forEach(result => {
+            const div = document.createElement('div');
+            div.className = 'test-result ' + (result.passed ? 'pass' : 'fail');
+            div.innerHTML = result.passed 
+                ? `✓ ${result.name}`
+                : `✗ ${result.name}: ${result.error}`;
+            resultsDiv.appendChild(div);
+        });
+
+        const summaryDiv = document.getElementById('summary');
+        summaryDiv.innerHTML = `总计: ${totalTests} | 通过: ${passedTests} | 失败: ${totalTests - passedTests}`;
+        summaryDiv.style.color = passedTests === totalTests ? '#155724' : '#721c24';
+
+        console.log(`Phase 4 Tests: ${passedTests}/${totalTests} passed`);
+    </script>
+</body>
+</html>

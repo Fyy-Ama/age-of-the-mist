@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Phase 6 Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f4e8c1;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .fail {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Phase 6 测试报告</h1>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <div id="game-container">
+        <canvas id="game-canvas" width="1280" height="720"></canvas>
+        <div id="ui-layer"></div>
+    </div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/event-bus.js"></script>
+    <script src="js/input-manager.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/collision.js"></script>
+    <script src="js/entity.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/discovery-log.js"></script>
+    <script src="js/region-manager.js"></script>
+    <script src="js/world-map.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/save-manager.js"></script>
+    <script src="js/day-night-cycle.js"></script>
+    <script src="js/world-events.js"></script>
+    <script src="js/ui-manager.js"></script>
+    <script src="js/game.js"></script>
+    <script>
+        const results = [];
+        let totalTests = 0;
+        let passedTests = 0;
+
+        function test(name, fn) {
+            totalTests++;
+            try {
+                fn();
+                passedTests++;
+                results.push({ name, passed: true, error: null });
+            } catch (error) {
+                results.push({ name, passed: false, error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+
+        // ===== Game State Constants =====
+
+        test('GAME_STATES has TITLE state', () => {
+            assert(typeof GAME_STATES.TITLE === 'string', 'TITLE state should exist');
+            assert(GAME_STATES.TITLE === 'title', 'TITLE should be "title"');
+        });
+
+        test('GAME_STATES has PLAYING state', () => {
+            assert(typeof GAME_STATES.PLAYING === 'string', 'PLAYING state should exist');
+        });
+
+        test('GAME_STATES has PAUSED state', () => {
+            assert(typeof GAME_STATES.PAUSED === 'string', 'PAUSED state should exist');
+        });
+
+        test('GAME_STATES has LOADING state', () => {
+            assert(typeof GAME_STATES.LOADING === 'string', 'LOADING state should exist');
+        });
+
+        // ===== UIManager Constructor and Settings =====
+
+        test('UIManager constructor initializes settings', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            const settings = ui.getSettings();
+            assert(typeof settings === 'object', 'Settings should be an object');
+            assert(settings.showFPS === true, 'showFPS should default to true');
+            assert(settings.controlsHint === true, 'controlsHint should default to true');
+            assert(settings.dayNightSpeed === 1, 'dayNightSpeed should default to 1');
+        });
+
+        test('UIManager importSettings updates values', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui.importSettings({ showFPS: false, controlsHint: false, dayNightSpeed: 2 });
+            const settings = ui.getSettings();
+            assert(settings.showFPS === false, 'showFPS should be false after import');
+            assert(settings.controlsHint === false, 'controlsHint should be false after import');
+            assert(settings.dayNightSpeed === 2, 'dayNightSpeed should be 2 after import');
+        });
+
+        test('UIManager importSettings partial update', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui.importSettings({ showFPS: false });
+            const settings = ui.getSettings();
+            assert(settings.showFPS === false, 'showFPS should be false');
+            assert(settings.controlsHint === true, 'controlsHint should remain default');
+            assert(settings.dayNightSpeed === 1, 'dayNightSpeed should remain default');
+        });
+
+        test('UIManager importSettings with null is safe', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui.importSettings(null);
+            const settings = ui.getSettings();
+            assert(settings.showFPS === true, 'Settings should remain default');
+        });
+
+        test('UIManager getActivePanel returns null initially', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            assert(ui.getActivePanel() === null, 'Active panel should be null initially');
+        });
+
+        test('UIManager isPanelOpen returns false initially', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            assert(ui.isPanelOpen() === false, 'Panel should not be open initially');
+        });
+
+        test('UIManager setGameRef stores reference', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            const fakeGame = { saveManager: null };
+            ui.setGameRef(fakeGame);
+            assert(ui._gameRef === fakeGame, 'Game reference should be stored');
+        });
+
+        // ===== Title Screen =====
+
+        test('UIManager creates title screen DOM', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui.setGameRef({ saveManager: null });
+            ui._createTitleScreen();
+
+            const title = document.getElementById('title-screen');
+            assert(title !== null, 'Title screen element should exist');
+            assert(title.className === 'title-screen', 'Title screen should have correct class');
+
+            const startBtn = document.getElementById('title-start');
+            assert(startBtn !== null, 'Start button should exist');
+
+            const continueBtn = document.getElementById('title-continue');
+            assert(continueBtn !== null, 'Continue button should exist');
+
+            title.remove();
+        });
+
+        test('Title screen has correct text content', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui.setGameRef({ saveManager: null });
+            ui._createTitleScreen();
+
+            const title = document.getElementById('title-screen');
+            assert(title.textContent.includes('迷雾纪元'), 'Should contain game title');
+            assert(title.textContent.includes('Age of the Mist'), 'Should contain English title');
+
+            title.remove();
+        });
+
+        // ===== Pause Menu =====
+
+        test('UIManager creates pause menu DOM', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui._createPauseMenu();
+
+            const overlay = document.getElementById('pause-overlay');
+            assert(overlay !== null, 'Pause overlay should exist');
+
+            const menuItems = overlay.querySelectorAll('.menu-item');
+            assert(menuItems.length === 5, 'Should have 5 menu items');
+
+            overlay.remove();
+        });
+
+        test('Pause menu items have correct actions', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui._createPauseMenu();
+
+            const overlay = document.getElementById('pause-overlay');
+            const items = overlay.querySelectorAll('.menu-item');
+            const actions = Array.from(items).map(item => item.dataset.action);
+
+            assert(actions.includes('resume'), 'Should have resume action');
+            assert(actions.includes('inventory'), 'Should have inventory action');
+            assert(actions.includes('map'), 'Should have map action');
+            assert(actions.includes('settings'), 'Should have settings action');
+            assert(actions.includes('title'), 'Should have title action');
+
+            overlay.remove();
+        });
+
+        test('UIManager handleMenuNavigation cycles through items', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui._createPauseMenu();
+            ui.showPauseMenu();
+
+            assert(ui._menuSelectedIndex === 0, 'Should start at index 0');
+
+            ui.handleMenuNavigation('down');
+            assert(ui._menuSelectedIndex === 1, 'Should move to index 1 after down');
+
+            ui.handleMenuNavigation('down');
+            assert(ui._menuSelectedIndex === 2, 'Should move to index 2 after down');
+
+            ui.handleMenuNavigation('up');
+            assert(ui._menuSelectedIndex === 1, 'Should move back to index 1 after up');
+
+            document.getElementById('pause-overlay').remove();
+        });
+
+        test('UIManager handleMenuNavigation wraps around', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui._createPauseMenu();
+            ui.showPauseMenu();
+
+            ui._menuSelectedIndex = 0;
+            ui.handleMenuNavigation('up');
+            assert(ui._menuSelectedIndex === 4, 'Should wrap to last item on up from first');
+
+            ui._menuSelectedIndex = 4;
+            ui.handleMenuNavigation('down');
+            assert(ui._menuSelectedIndex === 0, 'Should wrap to first item on down from last');
+
+            document.getElementById('pause-overlay').remove();
+        });
+
+        // ===== Settings Panel =====
+
+        test('UIManager creates settings panel DOM', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui._createSettingsPanel();
+
+            const overlay = document.getElementById('settings-overlay');
+            assert(overlay !== null, 'Settings overlay should exist');
+
+            const fpsBtn = document.getElementById('setting-fps');
+            assert(fpsBtn !== null, 'FPS toggle button should exist');
+
+            const hintsBtn = document.getElementById('setting-hints');
+            assert(hintsBtn !== null, 'Hints toggle button should exist');
+
+            const speedBtn = document.getElementById('setting-speed');
+            assert(speedBtn !== null, 'Speed toggle button should exist');
+
+            const resetBtn = document.getElementById('setting-reset');
+            assert(resetBtn !== null, 'Reset button should exist');
+
+            overlay.remove();
+        });
+
+        test('Settings panel shows correct initial values', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui._createSettingsPanel();
+            ui._updateSettingsUI();
+
+            const fpsBtn = document.getElementById('setting-fps');
+            assert(fpsBtn.textContent === '\u2713', 'FPS toggle should show checkmark');
+
+            const hintsBtn = document.getElementById('setting-hints');
+            assert(hintsBtn.textContent === '\u2713', 'Hints toggle should show checkmark');
+
+            const speedBtn = document.getElementById('setting-speed');
+            assert(speedBtn.textContent === '1x', 'Speed should show 1x');
+
+            document.getElementById('settings-overlay').remove();
+        });
+
+        test('Settings panel FPS toggle works', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui._createSettingsPanel();
+
+            const fpsBtn = document.getElementById('setting-fps');
+            assert(ui.getSettings().showFPS === true, 'FPS should be on initially');
+
+            fpsBtn.click();
+            assert(ui.getSettings().showFPS === false, 'FPS should be off after toggle');
+
+            fpsBtn.click();
+            assert(ui.getSettings().showFPS === true, 'FPS should be on after second toggle');
+
+            document.getElementById('settings-overlay').remove();
+        });
+
+        test('Settings panel speed cycles through values', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui._createSettingsPanel();
+
+            const speedBtn = document.getElementById('setting-speed');
+            assert(ui.getSettings().dayNightSpeed === 1, 'Speed should be 1x initially');
+
+            speedBtn.click();
+            assert(ui.getSettings().dayNightSpeed === 2, 'Speed should be 2x after first click');
+
+            speedBtn.click();
+            assert(ui.getSettings().dayNightSpeed === 0.5, 'Speed should be 0.5x after second click');
+
+            speedBtn.click();
+            assert(ui.getSettings().dayNightSpeed === 1, 'Speed should be 1x after third click');
+
+            document.getElementById('settings-overlay').remove();
+        });
+
+        // ===== Map Overview =====
+
+        test('UIManager creates map overview DOM', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui._createMapOverview();
+
+            const overlay = document.getElementById('map-overlay');
+            assert(overlay !== null, 'Map overlay should exist');
+
+            const content = document.getElementById('map-content');
+            assert(content !== null, 'Map content area should exist');
+
+            const legend = overlay.querySelector('.map-legend');
+            assert(legend !== null, 'Map legend should exist');
+
+            overlay.remove();
+        });
+
+        test('Map overview renders visited and unvisited regions', () => {
+            const bus = new EventBus();
+            const regionManager = new RegionManager();
+            const discoveryLog = new DiscoveryLog(bus);
+            const ui = new UIManager(bus);
+
+            discoveryLog.record('location', 'travelers_camp', '旅人营地');
+
+            ui._createMapOverview();
+            ui._renderMapContent(regionManager, discoveryLog, 3200, 3200);
+
+            const content = document.getElementById('map-content');
+            const visitedRegions = content.querySelectorAll('.map-region.visited');
+            const unvisitedRegions = content.querySelectorAll('.map-region.unvisited');
+
+            assert(visitedRegions.length > 0, 'Should have at least one visited region');
+            assert(unvisitedRegions.length > 0, 'Should have at least one unvisited region');
+
+            document.getElementById('map-overlay').remove();
+        });
+
+        test('Map overview shows ??? for unvisited regions', () => {
+            const bus = new EventBus();
+            const regionManager = new RegionManager();
+            const discoveryLog = new DiscoveryLog(bus);
+            const ui = new UIManager(bus);
+
+            ui._createMapOverview();
+            ui._renderMapContent(regionManager, discoveryLog, 3200, 3200);
+
+            const content = document.getElementById('map-content');
+            const unvisitedNames = content.querySelectorAll('.map-region.unvisited .map-region-name');
+            const hasUnknown = Array.from(unvisitedNames).some(el => el.textContent === '???');
+            assert(hasUnknown, 'Unvisited regions should show ???');
+
+            document.getElementById('map-overlay').remove();
+        });
+
+        // ===== FPS Counter =====
+
+        test('UIManager updateFPS creates FPS counter element', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui.updateFPS(60);
+
+            const fpsEl = document.getElementById('fps-counter');
+            assert(fpsEl !== null, 'FPS counter element should exist');
+            assert(fpsEl.textContent === 'FPS: 60', 'FPS counter should show correct value');
+
+            fpsEl.remove();
+        });
+
+        test('UIManager updateFPS respects showFPS setting', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+
+            ui._settings.showFPS = false;
+            ui.updateFPS(30);
+
+            const fpsEl = document.getElementById('fps-counter');
+            assert(fpsEl.style.display === 'none', 'FPS counter should be hidden when showFPS is false');
+
+            ui._settings.showFPS = true;
+            ui.updateFPS(45);
+            assert(fpsEl.style.display === 'block', 'FPS counter should be visible when showFPS is true');
+
+            fpsEl.remove();
+        });
+
+        // ===== Minimap =====
+
+        test('UIManager renderMinimap creates canvas', () => {
+            const bus = new EventBus();
+            const regionManager = new RegionManager();
+            const discoveryLog = new DiscoveryLog(bus);
+            const ui = new UIManager(bus);
+
+            ui.renderMinimap(regionManager, discoveryLog, 3200, 3200);
+
+            const canvas = document.getElementById('minimap-canvas');
+            assert(canvas !== null, 'Minimap canvas should exist');
+            assert(canvas.width === 120, 'Minimap should be 120px wide');
+            assert(canvas.height === 120, 'Minimap should be 120px tall');
+
+            canvas.remove();
+            const wrapper = document.getElementById('minimap-wrapper');
+            if (wrapper) wrapper.remove();
+        });
+
+        // ===== Interaction Prompt =====
+
+        test('showInteractionPrompt respects controlsHint setting', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+
+            ui._settings.controlsHint = false;
+            ui.showInteractionPrompt('[E] 拾取物品');
+            const prompt = document.getElementById('interaction-prompt');
+            assert(prompt === null, 'Prompt should not be created when hints are off');
+
+            ui._settings.controlsHint = true;
+            ui.showInteractionPrompt('[E] 拾取物品');
+            const prompt2 = document.getElementById('interaction-prompt');
+            assert(prompt2 !== null, 'Prompt should be created when hints are on');
+            assert(prompt2.textContent === '[E] 拾取物品', 'Prompt should show correct text');
+
+            prompt2.remove();
+        });
+
+        // ===== Event Toast =====
+
+        test('UIManager showEventToast creates toast element', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui.showEventToast('发现隐秘小径', '浓雾散去，藤蔓后隐约可见通路');
+
+            const toast = document.getElementById('event-toast');
+            assert(toast !== null, 'Event toast should exist');
+            assert(toast.textContent.includes('发现隐秘小径'), 'Toast should contain title');
+            assert(toast.textContent.includes('浓雾散去'), 'Toast should contain description');
+
+            toast.remove();
+        });
+
+        // ===== Region Popup =====
+
+        test('UIManager showRegionPopup creates popup', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+            ui.showRegionPopup('迷雾森林');
+
+            const popup = document.getElementById('region-popup');
+            assert(popup !== null, 'Region popup should exist');
+            assert(popup.textContent === '迷雾森林', 'Popup should show region name');
+
+            popup.remove();
+        });
+
+        // ===== Panel Management =====
+
+        test('UIManager closeActivePanel clears all panels', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+
+            ui._createPauseMenu();
+            ui.showPauseMenu();
+            assert(ui.getActivePanel() === 'pause', 'Pause menu should be active');
+
+            ui.closeActivePanel();
+            assert(ui.getActivePanel() === null, 'No panel should be active after close');
+
+            const overlay = document.getElementById('pause-overlay');
+            assert(overlay.style.display === 'none', 'Pause overlay should be hidden');
+        });
+
+        test('UIManager hideAll closes panels and hides prompts', () => {
+            const bus = new EventBus();
+            const ui = new UIManager(bus);
+
+            ui._settings.controlsHint = true;
+            ui.showInteractionPrompt('test');
+            ui._createPauseMenu();
+            ui.showPauseMenu();
+
+            ui.hideAll();
+            assert(ui.getActivePanel() === null, 'No panel should be active');
+
+            const prompt = document.getElementById('interaction-prompt');
+            assert(prompt.style.display === 'none', 'Prompt should be hidden');
+        });
+
+        // ===== Game Class =====
+
+        test('Game constructor initializes state to LOADING', () => {
+            const game = new Game();
+            assert(game.state === GAME_STATES.LOADING, 'Initial state should be LOADING');
+        });
+
+        test('Game has start method', () => {
+            const game = new Game();
+            assert(typeof game.start === 'function', 'start method should exist');
+        });
+
+        test('Game has startNewGame method', () => {
+            const game = new Game();
+            assert(typeof game.startNewGame === 'function', 'startNewGame method should exist');
+        });
+
+        test('Game has continueGame method', () => {
+            const game = new Game();
+            assert(typeof game.continueGame === 'function', 'continueGame method should exist');
+        });
+
+        test('Game has returnToTitle method', () => {
+            const game = new Game();
+            assert(typeof game.returnToTitle === 'function', 'returnToTitle method should exist');
+        });
+
+        test('Game has resetWorld method', () => {
+            const game = new Game();
+            assert(typeof game.resetWorld === 'function', 'resetWorld method should exist');
+        });
+
+        test('Game has pause method', () => {
+            const game = new Game();
+            assert(typeof game.pause === 'function', 'pause method should exist');
+        });
+
+        test('Game has resume method', () => {
+            const game = new Game();
+            assert(typeof game.resume === 'function', 'resume method should exist');
+        });
+
+        test('Game has _buildSaveData method', () => {
+            const game = new Game();
+            assert(typeof game._buildSaveData === 'function', '_buildSaveData method should exist');
+        });
+
+        test('Game has _restoreSave method', () => {
+            const game = new Game();
+            assert(typeof game._restoreSave === 'function', '_restoreSave method should exist');
+        });
+
+        // ===== Save Data Structure =====
+
+        test('Game _buildSaveData includes settings', () => {
+            const bus = new EventBus();
+            const game = new Game();
+            game.eventBus = bus;
+            game.uiManager = new UIManager(bus);
+            game.player = { exportState: () => ({ x: 0, y: 0 }) };
+            game.inventory = { export: () => [] };
+            game.discoveryLog = { export: () => [] };
+            game.worldMap = { exportStates: () => ({}) };
+            game.dayNightCycle = { export: () => ({ normalizedTime: 0.5 }) };
+            game.worldEvents = { export: () => ({ triggered: [], cooldowns: {} }) };
+
+            const saveData = game._buildSaveData();
+            assert(typeof saveData.settings === 'object', 'Save data should include settings');
+            assert(saveData.settings.showFPS === true, 'Settings should have showFPS');
+            assert(saveData.settings.controlsHint === true, 'Settings should have controlsHint');
+            assert(saveData.settings.dayNightSpeed === 1, 'Settings should have dayNightSpeed');
+        });
+
+        test('Game _restoreSave imports settings', () => {
+            const bus = new EventBus();
+            const game = new Game();
+            game.eventBus = bus;
+            game.uiManager = new UIManager(bus);
+            game.player = { importState: () => {} };
+            game.inventory = { import: () => {} };
+            game.discoveryLog = { import: () => {} };
+            game.worldMap = { importStates: () => {} };
+            game.dayNightCycle = { import: () => {} };
+            game.worldEvents = { import: () => {} };
+
+            game._restoreSave({
+                version: 1,
+                settings: { showFPS: false, controlsHint: false, dayNightSpeed: 2 }
+            });
+
+            const settings = game.uiManager.getSettings();
+            assert(settings.showFPS === false, 'Settings should be imported');
+            assert(settings.controlsHint === false, 'Controls hint should be imported');
+            assert(settings.dayNightSpeed === 2, 'Day night speed should be imported');
+        });
+
+        // ===== Title Fog Particles =====
+
+        test('Game _initTitleFog creates particles', () => {
+            const game = new Game();
+            game._initTitleFog();
+            assert(game._titleFogParticles.length === 20, 'Should create 20 fog particles');
+        });
+
+        test('Title fog particles have correct properties', () => {
+            const game = new Game();
+            game._initTitleFog();
+            const p = game._titleFogParticles[0];
+            assert(typeof p.x === 'number', 'Particle should have x');
+            assert(typeof p.y === 'number', 'Particle should have y');
+            assert(typeof p.r === 'number', 'Particle should have radius');
+            assert(typeof p.vx === 'number', 'Particle should have vx');
+            assert(typeof p.vy === 'number', 'Particle should have vy');
+            assert(typeof p.alpha === 'number', 'Particle should have alpha');
+        });
+
+        // Display results
+        const resultsDiv = document.getElementById('results');
+        results.forEach(result => {
+            const div = document.createElement('div');
+            div.className = 'test-result ' + (result.passed ? 'pass' : 'fail');
+            div.innerHTML = result.passed 
+                ? `✓ ${result.name}`
+                : `✗ ${result.name}: ${result.error}`;
+            resultsDiv.appendChild(div);
+        });
+
+        const summaryDiv = document.getElementById('summary');
+        summaryDiv.innerHTML = `总计: ${totalTests} | 通过: ${passedTests} | 失败: ${totalTests - passedTests}`;
+        summaryDiv.style.color = passedTests === totalTests ? '#155724' : '#721c24';
+
+        console.log(`Phase 6 Tests: ${passedTests}/${totalTests} passed`);
+    </script>
+</body>
+</html>

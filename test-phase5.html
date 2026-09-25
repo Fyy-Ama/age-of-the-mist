@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Phase 5 Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f4e8c1;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .fail {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Phase 5 测试报告</h1>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/event-bus.js"></script>
+    <script src="js/day-night-cycle.js"></script>
+    <script src="js/world-events.js"></script>
+    <script>
+        const results = [];
+        let totalTests = 0;
+        let passedTests = 0;
+
+        function test(name, fn) {
+            totalTests++;
+            try {
+                fn();
+                passedTests++;
+                results.push({ name, passed: true, error: null });
+            } catch (error) {
+                results.push({ name, passed: false, error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+
+        // ===== DayNightCycle Tests =====
+
+        // Test 1: Constants exist
+        test('DayNightCycle constants exist', () => {
+            assert(typeof CYCLE_DURATION === 'number', 'CYCLE_DURATION should be a number');
+            assert(CYCLE_DURATION === 480, 'CYCLE_DURATION should be 480');
+            assert(typeof PHASE_RANGES === 'object', 'PHASE_RANGES should be an object');
+            assert(typeof PHASE_OVERLAYS === 'object', 'PHASE_OVERLAYS should be an object');
+            assert(typeof PHASE_ICONS === 'object', 'PHASE_ICONS should be an object');
+        });
+
+        // Test 2: Constructor defaults
+        test('DayNightCycle constructor defaults', () => {
+            const bus = new EventBus();
+            const dnc = new DayNightCycle(bus);
+            assert(dnc.getTimeOfDay() === 0.0, 'Initial time should be 0.0');
+            assert(dnc.getPhase() === 'night', 'Initial phase should be night');
+            assert(dnc.getSpeedMultiplier() === 1.0, 'Initial speed should be 1.0');
+        });
+
+        // Test 3: Phase ranges
+        test('DayNightCycle phase ranges', () => {
+            assert(PHASE_RANGES.night.start === 0.0, 'Night starts at 0.0');
+            assert(PHASE_RANGES.night.end === 0.2, 'Night ends at 0.2');
+            assert(PHASE_RANGES.dawn.start === 0.2, 'Dawn starts at 0.2');
+            assert(PHASE_RANGES.dawn.end === 0.3, 'Dawn ends at 0.3');
+            assert(PHASE_RANGES.day.start === 0.3, 'Day starts at 0.3');
+            assert(PHASE_RANGES.day.end === 0.7, 'Day ends at 0.7');
+            assert(PHASE_RANGES.dusk.start === 0.7, 'Dusk starts at 0.7');
+            assert(PHASE_RANGES.dusk.end === 0.8, 'Dusk ends at 0.8');
+        });
+
+        // Test 4: setTime and getPhase
+        test('DayNightCycle setTime and getPhase', () => {
+            const bus = new EventBus();
+            const dnc = new DayNightCycle(bus);
+
+            dnc.setTime(0.1);
+            assert(dnc.getPhase() === 'night', 'Time 0.1 should be night');
+
+            dnc.setTime(0.25);
+            assert(dnc.getPhase() === 'dawn', 'Time 0.25 should be dawn');
+
+            dnc.setTime(0.5);
+            assert(dnc.getPhase() === 'day', 'Time 0.5 should be day');
+
+            dnc.setTime(0.75);
+            assert(dnc.getPhase() === 'dusk', 'Time 0.75 should be dusk');
+        });
+
+        // Test 5: setTime clamping
+        test('DayNightCycle setTime clamping', () => {
+            const bus = new EventBus();
+            const dnc = new DayNightCycle(bus);
+
+            dnc.setTime(-0.5);
+            assert(dnc.getTimeOfDay() === 0, 'Negative time should clamp to 0');
+
+            dnc.setTime(1.5);
+            assert(dnc.getTimeOfDay() === 1.0, 'Time > 1 should clamp to 1');
+        });
+
+        // Test 6: update advances time
+        test('DayNightCycle update advances time', () => {
+            const bus = new EventBus();
+            const dnc = new DayNightCycle(bus);
+
+            dnc.setTime(0.5);
+            const before = dnc.getTimeOfDay();
+            dnc.update(60);
+            const after = dnc.getTimeOfDay();
+            assert(after !== before, 'Time should advance after update');
+        });
+
+        // Test 7: update wraps around
+        test('DayNightCycle update wraps around', () => {
+            const bus = new EventBus();
+            const dnc = new DayNightCycle(bus);
+
+            dnc.setTime(0.99);
+            dnc.update(10);
+            assert(dnc.getTimeOfDay() < 0.5, 'Time should wrap around past 1.0');
+        });
+
+        // Test 8: phase change emits event
+        test('DayNightCycle phase change emits event', () => {
+            const bus = new EventBus();
+            const dnc = new DayNightCycle(bus);
+            let emitted = false;
+            let emittedPhase = null;
+
+            bus.on('daynight:phaseChanged', (data) => {
+                emitted = true;
+                emittedPhase = data.phase;
+            });
+
+            dnc.setTime(0.1);
+            dnc.update(60);
+            assert(emitted, 'Should emit phaseChanged event');
+            assert(typeof emittedPhase === 'string', 'Event should include phase name');
+        });
+
+        // Test 9: getOverlayColor returns string
+        test('DayNightCycle getOverlayColor', () => {
+            const bus = new EventBus();
+            const dnc = new DayNightCycle(bus);
+
+            dnc.setTime(0.5);
+            const color = dnc.getOverlayColor();
+            assert(typeof color === 'string', 'Overlay color should be a string');
+            assert(color.startsWith('rgba'), 'Overlay color should be rgba format');
+        });
+
+        // Test 10: getPhaseIcon returns icon
+        test('DayNightCycle getPhaseIcon', () => {
+            const bus = new EventBus();
+            const dnc = new DayNightCycle(bus);
+
+            dnc.setTime(0.5);
+            const icon = dnc.getPhaseIcon();
+            assert(typeof icon === 'string', 'Phase icon should be a string');
+            assert(icon.length > 0, 'Phase icon should not be empty');
+        });
+
+        // Test 11: getAmbientTint returns number
+        test('DayNightCycle getAmbientTint', () => {
+            const bus = new EventBus();
+            const dnc = new DayNightCycle(bus);
+
+            dnc.setTime(0.5);
+            const tint = dnc.getAmbientTint();
+            assert(typeof tint === 'number', 'Ambient tint should be a number');
+            assert(tint >= 0 && tint <= 1.5, 'Ambient tint should be in reasonable range');
+        });
+
+        // Test 12: setSpeedMultiplier
+        test('DayNightCycle setSpeedMultiplier', () => {
+            const bus = new EventBus();
+            const dnc = new DayNightCycle(bus);
+
+            dnc.setSpeedMultiplier(2.0);
+            assert(dnc.getSpeedMultiplier() === 2.0, 'Speed multiplier should be 2.0');
+        });
+
+        // Test 13: export and import
+        test('DayNightCycle export and import', () => {
+            const bus = new EventBus();
+            const dnc1 = new DayNightCycle(bus);
+            dnc1.setTime(0.55);
+            dnc1.setSpeedMultiplier(1.5);
+
+            const exported = dnc1.export();
+            assert(typeof exported === 'object', 'Export should return object');
+            assert(typeof exported.normalizedTime === 'number', 'Export should have normalizedTime');
+            assert(typeof exported.speedMultiplier === 'number', 'Export should have speedMultiplier');
+
+            const dnc2 = new DayNightCycle(bus);
+            dnc2.import(exported);
+            assert(Math.abs(dnc2.getTimeOfDay() - 0.55) < 0.01, 'Imported time should match');
+            assert(dnc2.getSpeedMultiplier() === 1.5, 'Imported speed should match');
+        });
+
+        // Test 14: PHASE_OVERLAYS has all phases
+        test('DayNightCycle PHASE_OVERLAYS completeness', () => {
+            assert(typeof PHASE_OVERLAYS.night === 'string', 'Should have night overlay');
+            assert(typeof PHASE_OVERLAYS.dawn === 'string', 'Should have dawn overlay');
+            assert(typeof PHASE_OVERLAYS.day === 'string', 'Should have day overlay');
+            assert(typeof PHASE_OVERLAYS.dusk === 'string', 'Should have dusk overlay');
+        });
+
+        // Test 15: PHASE_ICONS has all phases
+        test('DayNightCycle PHASE_ICONS completeness', () => {
+            assert(typeof PHASE_ICONS.night === 'string', 'Should have night icon');
+            assert(typeof PHASE_ICONS.dawn === 'string', 'Should have dawn icon');
+            assert(typeof PHASE_ICONS.day === 'string', 'Should have day icon');
+            assert(typeof PHASE_ICONS.dusk === 'string', 'Should have dusk icon');
+        });
+
+        // ===== WorldEvents Tests =====
+
+        // Test 16: WORLD_EVENT_DEFS exists
+        test('WORLD_EVENT_DEFS exists and has events', () => {
+            assert(Array.isArray(WORLD_EVENT_DEFS), 'WORLD_EVENT_DEFS should be an array');
+            assert(WORLD_EVENT_DEFS.length === 11, 'Should have 11 event definitions');
+        });
+
+        // Test 17: Event definitions structure
+        test('WorldEvents event definition structure', () => {
+            for (const def of WORLD_EVENT_DEFS) {
+                assert(typeof def.id === 'string', 'Event should have string id');
+                assert(typeof def.name === 'string', 'Event should have string name');
+                assert(typeof def.description === 'string', 'Event should have string description');
+                assert(typeof def.triggerType === 'string', 'Event should have triggerType');
+                assert(typeof def.weight === 'number', 'Event should have numeric weight');
+                assert(typeof def.cooldown === 'number', 'Event should have numeric cooldown');
+                assert(typeof def.repeatable === 'boolean', 'Event should have boolean repeatable');
+            }
+        });
+
+        // Test 18: WorldEvents constructor
+        test('WorldEvents constructor', () => {
+            const bus = new EventBus();
+            const we = new WorldEvents(bus);
+            assert(we.getTriggeredIds().length === 0, 'Should start with no triggered events');
+        });
+
+        // Test 19: onRegionEnter triggers event
+        test('WorldEvents onRegionEnter triggers event', () => {
+            const bus = new EventBus();
+            const we = new WorldEvents(bus);
+            let triggered = false;
+            let triggeredName = null;
+
+            bus.on('world:event_triggered', (data) => {
+                triggered = true;
+                triggeredName = data.name;
+            });
+
+            we.onRegionEnter('travelers_camp');
+            assert(triggered, 'Should trigger an event on region enter');
+            assert(typeof triggeredName === 'string', 'Event should have a name');
+        });
+
+        // Test 20: onRegionEnter dedup same region
+        test('WorldEvents onRegionEnter dedup same region', () => {
+            const bus = new EventBus();
+            const we = new WorldEvents(bus);
+            let count = 0;
+
+            bus.on('world:event_triggered', () => { count++; });
+
+            we.onRegionEnter('travelers_camp');
+            const firstCount = count;
+            we.onRegionEnter('travelers_camp');
+            assert(count === firstCount, 'Same region should not trigger again immediately');
+        });
+
+        // Test 21: onRegionEnter different region
+        test('WorldEvents onRegionEnter different region', () => {
+            const bus = new EventBus();
+            const we = new WorldEvents(bus);
+            let count = 0;
+
+            bus.on('world:event_triggered', () => { count++; });
+
+            we.onRegionEnter('travelers_camp');
+            const firstCount = count;
+            we.onRegionEnter('misty_forest');
+            assert(count >= firstCount, 'Different region should be eligible for trigger');
+        });
+
+        // Test 22: onPhaseChange triggers event
+        test('WorldEvents onPhaseChange triggers event', () => {
+            const bus = new EventBus();
+            const we = new WorldEvents(bus);
+            let triggered = false;
+
+            bus.on('world:event_triggered', () => { triggered = true; });
+
+            we.onPhaseChange('night');
+            assert(triggered, 'Should trigger an event on phase change');
+        });
+
+        // Test 23: onPhaseChange dedup same phase
+        test('WorldEvents onPhaseChange dedup same phase', () => {
+            const bus = new EventBus();
+            const we = new WorldEvents(bus);
+            let count = 0;
+
+            bus.on('world:event_triggered', () => { count++; });
+
+            we.onPhaseChange('night');
+            const firstCount = count;
+            we.onPhaseChange('night');
+            assert(count === firstCount, 'Same phase should not trigger again immediately');
+        });
+
+        // Test 24: hasTriggered
+        test('WorldEvents hasTriggered', () => {
+            const bus = new EventBus();
+            const we = new WorldEvents(bus);
+
+            bus.on('world:event_triggered', () => {});
+            we.onRegionEnter('travelers_camp');
+
+            const triggeredIds = we.getTriggeredIds();
+            assert(triggeredIds.length > 0, 'Should have triggered at least one event');
+            assert(we.hasTriggered(triggeredIds[0]) === true, 'hasTriggered should return true for triggered event');
+            assert(we.hasTriggered('nonexistent_event') === false, 'hasTriggered should return false for unknown event');
+        });
+
+        // Test 25: export and import
+        test('WorldEvents export and import', () => {
+            const bus = new EventBus();
+            const we1 = new WorldEvents(bus);
+
+            bus.on('world:event_triggered', () => {});
+            we1.onRegionEnter('travelers_camp');
+
+            const exported = we1.export();
+            assert(typeof exported === 'object', 'Export should return object');
+            assert(Array.isArray(exported.triggered), 'Export should have triggered array');
+            assert(typeof exported.cooldowns === 'object', 'Export should have cooldowns object');
+
+            const we2 = new WorldEvents(bus);
+            we2.import(exported);
+
+            for (const id of exported.triggered) {
+                assert(we2.hasTriggered(id), 'Imported WorldEvents should have same triggered events');
+            }
+        });
+
+        // Test 26: reset clears state
+        test('WorldEvents reset', () => {
+            const bus = new EventBus();
+            const we = new WorldEvents(bus);
+
+            bus.on('world:event_triggered', () => {});
+            we.onRegionEnter('travelers_camp');
+            assert(we.getTriggeredIds().length > 0, 'Should have triggered events before reset');
+
+            we.reset();
+            assert(we.getTriggeredIds().length === 0, 'Should have no triggered events after reset');
+        });
+
+        // Test 27: Event regions match REGIONS
+        test('WorldEvents event regions are valid', () => {
+            const regionIds = ['travelers_camp', 'misty_forest', 'abandoned_temple', 'dark_cavern', 'silver_coast'];
+            for (const def of WORLD_EVENT_DEFS) {
+                if (def.triggerRegion !== null) {
+                    assert(regionIds.includes(def.triggerRegion),
+                        `Event ${def.id} region ${def.triggerRegion} should be valid`);
+                }
+            }
+        });
+
+        // Test 28: Event trigger types are valid
+        test('WorldEvents trigger types are valid', () => {
+            const validTypes = ['enter_region', 'time_of_day'];
+            for (const def of WORLD_EVENT_DEFS) {
+                assert(validTypes.includes(def.triggerType),
+                    `Event ${def.id} triggerType should be valid`);
+            }
+        });
+
+        // Test 29: time_of_day events have triggerPhase
+        test('WorldEvents time_of_day events have triggerPhase', () => {
+            const validPhases = ['night', 'dawn', 'day', 'dusk'];
+            for (const def of WORLD_EVENT_DEFS) {
+                if (def.triggerType === 'time_of_day') {
+                    assert(typeof def.triggerPhase === 'string',
+                        `Event ${def.id} should have triggerPhase`);
+                    assert(validPhases.includes(def.triggerPhase),
+                        `Event ${def.id} triggerPhase should be valid`);
+                }
+            }
+        });
+
+        // Test 30: Weighted selection produces valid events
+        test('WorldEvents weighted selection produces valid events', () => {
+            const bus = new EventBus();
+            const we = new WorldEvents(bus);
+            let eventFired = false;
+
+            bus.on('world:event_triggered', (data) => {
+                eventFired = true;
+                const def = WORLD_EVENT_DEFS.find(d => d.id === data.eventId);
+                assert(def !== null && def !== undefined, 'Triggered event should match a definition');
+                assert(def.name === data.name, 'Event name should match definition');
+                assert(def.description === data.description, 'Event description should match definition');
+            });
+
+            we.onRegionEnter('misty_forest');
+            assert(eventFired, 'An event should fire for misty_forest');
+        });
+
+        // Display results
+        const resultsDiv = document.getElementById('results');
+        results.forEach(result => {
+            const div = document.createElement('div');
+            div.className = 'test-result ' + (result.passed ? 'pass' : 'fail');
+            div.innerHTML = result.passed 
+                ? `✓ ${result.name}`
+                : `✗ ${result.name}: ${result.error}`;
+            resultsDiv.appendChild(div);
+        });
+
+        const summaryDiv = document.getElementById('summary');
+        summaryDiv.innerHTML = `总计: ${totalTests} | 通过: ${passedTests} | 失败: ${totalTests - passedTests}`;
+        summaryDiv.style.color = passedTests === totalTests ? '#155724' : '#721c24';
+
+        console.log(`Phase 5 Tests: ${passedTests}/${totalTests} passed`);
+    </script>
+</body>
+</html>

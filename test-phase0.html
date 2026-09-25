@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Phase 0 Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f4e8c1;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .fail {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Phase 0 测试报告</h1>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/event-bus.js"></script>
+    <script src="js/game.js"></script>
+    <script>
+        const results = [];
+        let totalTests = 0;
+        let passedTests = 0;
+
+        function test(name, fn) {
+            totalTests++;
+            try {
+                fn();
+                passedTests++;
+                results.push({ name, passed: true, error: null });
+            } catch (error) {
+                results.push({ name, passed: false, error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+
+        // Test 1: Constants are defined
+        test('Constants are defined', () => {
+            assert(typeof TILE_SIZE === 'number', 'TILE_SIZE should be defined');
+            assert(typeof CANVAS_W === 'number', 'CANVAS_W should be defined');
+            assert(typeof CANVAS_H === 'number', 'CANVAS_H should be defined');
+            assert(typeof PLAYER_SIZE === 'number', 'PLAYER_SIZE should be defined');
+            assert(typeof PLAYER_SPEED === 'number', 'PLAYER_SPEED should be defined');
+            assert(typeof FIXED_DT === 'number', 'FIXED_DT should be defined');
+            assert(typeof WORLD_COLS === 'number', 'WORLD_COLS should be defined');
+            assert(typeof WORLD_ROWS === 'number', 'WORLD_ROWS should be defined');
+        });
+
+        // Test 2: TILE_IDS enum exists
+        test('TILE_IDS enum exists', () => {
+            assert(typeof TILE_IDS === 'object', 'TILE_IDS should be an object');
+            assert(typeof TILE_IDS.GRASS === 'number', 'TILE_IDS.GRASS should be defined');
+            assert(typeof TILE_IDS.WALL === 'number', 'TILE_IDS.WALL should be defined');
+        });
+
+        // Test 3: COLORS object exists
+        test('COLORS object exists', () => {
+            assert(typeof COLORS === 'object', 'COLORS should be an object');
+            assert(typeof COLORS.PARCHMENT === 'string', 'COLORS.PARCHMENT should be defined');
+            assert(typeof COLORS.BROWN_DARK === 'string', 'COLORS.BROWN_DARK should be defined');
+        });
+
+        // Test 4: GAME_STATES enum exists
+        test('GAME_STATES enum exists', () => {
+            assert(typeof GAME_STATES === 'object', 'GAME_STATES should be an object');
+            assert(GAME_STATES.LOADING === 'loading', 'GAME_STATES.LOADING should be "loading"');
+            assert(GAME_STATES.PLAYING === 'playing', 'GAME_STATES.PLAYING should be "playing"');
+            assert(GAME_STATES.PAUSED === 'paused', 'GAME_STATES.PAUSED should be "paused"');
+        });
+
+        // Test 5: Utils - lerp
+        test('Utils - lerp', () => {
+            assert(lerp(0, 10, 0) === 0, 'lerp(0, 10, 0) should be 0');
+            assert(lerp(0, 10, 1) === 10, 'lerp(0, 10, 1) should be 10');
+            assert(lerp(0, 10, 0.5) === 5, 'lerp(0, 10, 0.5) should be 5');
+        });
+
+        // Test 6: Utils - clamp
+        test('Utils - clamp', () => {
+            assert(clamp(5, 0, 10) === 5, 'clamp(5, 0, 10) should be 5');
+            assert(clamp(-5, 0, 10) === 0, 'clamp(-5, 0, 10) should be 0');
+            assert(clamp(15, 0, 10) === 10, 'clamp(15, 0, 10) should be 10');
+        });
+
+        // Test 7: Utils - aabbOverlap
+        test('Utils - aabbOverlap', () => {
+            const a = { x: 0, y: 0, w: 10, h: 10 };
+            const b = { x: 5, y: 5, w: 10, h: 10 };
+            const c = { x: 20, y: 20, w: 10, h: 10 };
+            assert(aabbOverlap(a, b) === true, 'Overlapping AABBs should return true');
+            assert(aabbOverlap(a, c) === false, 'Non-overlapping AABBs should return false');
+        });
+
+        // Test 8: Utils - pointInAABB
+        test('Utils - pointInAABB', () => {
+            const rect = { x: 0, y: 0, w: 10, h: 10 };
+            assert(pointInAABB(5, 5, rect) === true, 'Point inside should return true');
+            assert(pointInAABB(15, 15, rect) === false, 'Point outside should return false');
+        });
+
+        // Test 9: Utils - randInt
+        test('Utils - randInt', () => {
+            const result = randInt(1, 10);
+            assert(result >= 1 && result <= 10, 'randInt should return value in range');
+            assert(Number.isInteger(result), 'randInt should return integer');
+        });
+
+        // Test 10: Utils - randFloat
+        test('Utils - randFloat', () => {
+            const result = randFloat(1.0, 10.0);
+            assert(result >= 1.0 && result <= 10.0, 'randFloat should return value in range');
+        });
+
+        // Test 11: Utils - deepClone
+        test('Utils - deepClone', () => {
+            const obj = { a: 1, b: { c: 2 } };
+            const cloned = deepClone(obj);
+            assert(cloned.a === 1, 'Cloned object should have same values');
+            assert(cloned.b.c === 2, 'Cloned nested object should have same values');
+            assert(cloned !== obj, 'Cloned object should be different reference');
+            assert(cloned.b !== obj.b, 'Cloned nested object should be different reference');
+        });
+
+        // Test 12: Utils - smoothstep
+        test('Utils - smoothstep', () => {
+            assert(smoothstep(0) === 0, 'smoothstep(0) should be 0');
+            assert(smoothstep(1) === 1, 'smoothstep(1) should be 1');
+            assert(smoothstep(0.5) > 0 && smoothstep(0.5) < 1, 'smoothstep(0.5) should be between 0 and 1');
+        });
+
+        // Test 13: EventBus - on and emit
+        test('EventBus - on and emit', () => {
+            const bus = new EventBus();
+            let called = false;
+            bus.on('test', () => { called = true; });
+            bus.emit('test');
+            assert(called === true, 'Callback should be called');
+        });
+
+        // Test 14: EventBus - off
+        test('EventBus - off', () => {
+            const bus = new EventBus();
+            let callCount = 0;
+            const callback = () => { callCount++; };
+            bus.on('test', callback);
+            bus.emit('test');
+            bus.off('test', callback);
+            bus.emit('test');
+            assert(callCount === 1, 'Callback should only be called once after off');
+        });
+
+        // Test 15: EventBus - multiple listeners
+        test('EventBus - multiple listeners', () => {
+            const bus = new EventBus();
+            let count = 0;
+            bus.on('test', () => { count++; });
+            bus.on('test', () => { count++; });
+            bus.emit('test');
+            assert(count === 2, 'Both callbacks should be called');
+        });
+
+        // Test 16: Game class exists
+        test('Game class exists', () => {
+            assert(typeof Game === 'function', 'Game should be a constructor function');
+            const game = new Game();
+            assert(game instanceof Game, 'Should be able to instantiate Game');
+        });
+
+        // Test 17: Game initial state
+        test('Game initial state', () => {
+            const game = new Game();
+            assert(game.state === GAME_STATES.LOADING, 'Initial state should be LOADING');
+            assert(game.canvas === null, 'Canvas should be null before init');
+            assert(game.ctx === null, 'Context should be null before init');
+        });
+
+        // Test 18: Game methods exist
+        test('Game methods exist', () => {
+            const game = new Game();
+            assert(typeof game.init === 'function', 'init method should exist');
+            assert(typeof game.start === 'function', 'start method should exist');
+            assert(typeof game.pause === 'function', 'pause method should exist');
+            assert(typeof game.resume === 'function', 'resume method should exist');
+        });
+
+        // Display results
+        const resultsDiv = document.getElementById('results');
+        results.forEach(result => {
+            const div = document.createElement('div');
+            div.className = 'test-result ' + (result.passed ? 'pass' : 'fail');
+            div.innerHTML = result.passed 
+                ? `✓ ${result.name}`
+                : `✗ ${result.name}: ${result.error}`;
+            resultsDiv.appendChild(div);
+        });
+
+        const summaryDiv = document.getElementById('summary');
+        summaryDiv.innerHTML = `总计: ${totalTests} | 通过: ${passedTests} | 失败: ${totalTests - passedTests}`;
+        summaryDiv.style.color = passedTests === totalTests ? '#155724' : '#721c24';
+
+        console.log(`Phase 0 Tests: ${passedTests}/${totalTests} passed`);
+    </script>
+</body>
+</html>

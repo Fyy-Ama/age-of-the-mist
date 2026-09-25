@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Phase 1 Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f4e8c1;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .fail {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Phase 1 测试报告</h1>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/event-bus.js"></script>
+    <script src="js/input-manager.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/player.js"></script>
+    <script>
+        const results = [];
+        let totalTests = 0;
+        let passedTests = 0;
+
+        function test(name, fn) {
+            totalTests++;
+            try {
+                fn();
+                passedTests++;
+                results.push({ name, passed: true, error: null });
+            } catch (error) {
+                results.push({ name, passed: false, error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+
+        function assertApprox(actual, expected, tolerance = 0.001) {
+            if (Math.abs(actual - expected) > tolerance) {
+                throw new Error(`Expected ${expected}, got ${actual} (tolerance: ${tolerance})`);
+            }
+        }
+
+        // Test 1: InputManager constructor
+        test('InputManager constructor', () => {
+            const input = new InputManager();
+            assert(input._keysDown instanceof Set, '_keysDown should be a Set');
+            assert(input._keysPressed instanceof Set, '_keysPressed should be a Set');
+        });
+
+        // Test 2: InputManager methods exist
+        test('InputManager methods exist', () => {
+            const input = new InputManager();
+            assert(typeof input.update === 'function', 'update method should exist');
+            assert(typeof input.isKeyDown === 'function', 'isKeyDown method should exist');
+            assert(typeof input.isKeyPressed === 'function', 'isKeyPressed method should exist');
+            assert(typeof input.getMouseWorldPos === 'function', 'getMouseWorldPos method should exist');
+            assert(typeof input.isMouseClicked === 'function', 'isMouseClicked method should exist');
+        });
+
+        // Test 3: InputManager isKeyDown
+        test('InputManager isKeyDown', () => {
+            const input = new InputManager();
+            input._keysDown.add('w');
+            assert(input.isKeyDown('w') === true, 'isKeyDown should return true for pressed key');
+            assert(input.isKeyDown('a') === false, 'isKeyDown should return false for unpressed key');
+            assert(input.isKeyDown('W') === true, 'isKeyDown should be case-insensitive');
+        });
+
+        // Test 4: InputManager update
+        test('InputManager update', () => {
+            const input = new InputManager();
+            input._keysDown.add('w');
+            input.update();
+            assert(input._keysPressed.has('w'), 'isKeyPressed should be true after first update');
+            input.update();
+            assert(!input._keysPressed.has('w'), 'isKeyPressed should be false after second update (held key)');
+        });
+
+        // Test 5: Camera constructor
+        test('Camera constructor', () => {
+            const camera = new Camera(1280, 720, 6400, 6400);
+            assert(camera.width === 1280, 'width should be set');
+            assert(camera.height === 720, 'height should be set');
+            assert(camera.worldWidth === 6400, 'worldWidth should be set');
+            assert(camera.worldHeight === 6400, 'worldHeight should be set');
+            assert(camera.x === 0, 'x should be 0 initially');
+            assert(camera.y === 0, 'y should be 0 initially');
+            assert(camera.lerpFactor === 0.08, 'lerpFactor should be 0.08');
+        });
+
+        // Test 6: Camera update
+        test('Camera update', () => {
+            const camera = new Camera(1280, 720, 6400, 6400);
+            const target = { x: 1000, y: 1000 };
+            camera.update(target, 1/60);
+            assert(camera.x > 0, 'camera.x should move towards target');
+            assert(camera.y > 0, 'camera.y should move towards target');
+        });
+
+        // Test 7: Camera worldToScreen
+        test('Camera worldToScreen', () => {
+            const camera = new Camera(1280, 720, 6400, 6400);
+            camera.x = 100;
+            camera.y = 100;
+            const screen = camera.worldToScreen(200, 200);
+            assert(screen.x === 100, 'screen.x should be world.x - camera.x');
+            assert(screen.y === 100, 'screen.y should be world.y - camera.y');
+        });
+
+        // Test 8: Camera screenToWorld
+        test('Camera screenToWorld', () => {
+            const camera = new Camera(1280, 720, 6400, 6400);
+            camera.x = 100;
+            camera.y = 100;
+            const world = camera.screenToWorld(100, 100);
+            assert(world.x === 200, 'world.x should be screen.x + camera.x');
+            assert(world.y === 200, 'world.y should be screen.y + camera.y');
+        });
+
+        // Test 9: Camera getViewport
+        test('Camera getViewport', () => {
+            const camera = new Camera(1280, 720, 6400, 6400);
+            camera.x = 100;
+            camera.y = 100;
+            const viewport = camera.getViewport();
+            assert(viewport.x === 100, 'viewport.x should be camera.x');
+            assert(viewport.y === 100, 'viewport.y should be camera.y');
+            assert(viewport.w === 1280, 'viewport.w should be camera.width');
+            assert(viewport.h === 720, 'viewport.h should be camera.height');
+        });
+
+        // Test 10: Camera isVisible
+        test('Camera isVisible', () => {
+            const camera = new Camera(1280, 720, 6400, 6400);
+            camera.x = 0;
+            camera.y = 0;
+            const visible = { x: 100, y: 100, w: 50, h: 50 };
+            const invisible = { x: 2000, y: 2000, w: 50, h: 50 };
+            assert(camera.isVisible(visible) === true, 'Visible object should return true');
+            assert(camera.isVisible(invisible) === false, 'Invisible object should return false');
+        });
+
+        // Test 11: Player constructor
+        test('Player constructor', () => {
+            const player = new Player(100, 200);
+            assert(player.x === 100, 'x should be set');
+            assert(player.y === 200, 'y should be set');
+            assert(player.width === PLAYER_SIZE, 'width should be PLAYER_SIZE');
+            assert(player.height === PLAYER_SIZE, 'height should be PLAYER_SIZE');
+            assert(player.speed === PLAYER_SPEED, 'speed should be PLAYER_SPEED');
+            assert(player.facingDirection === 'down', 'facingDirection should be down initially');
+            assert(player.isMoving === false, 'isMoving should be false initially');
+        });
+
+        // Test 12: Player getPosition
+        test('Player getPosition', () => {
+            const player = new Player(100, 200);
+            const pos = player.getPosition();
+            assert(pos.x === 100, 'pos.x should be player.x');
+            assert(pos.y === 200, 'pos.y should be player.y');
+        });
+
+        // Test 13: Player getAABB
+        test('Player getAABB', () => {
+            const player = new Player(100, 200);
+            const aabb = player.getAABB();
+            assert(aabb.x === 100, 'aabb.x should be player.x');
+            assert(aabb.y === 200, 'aabb.y should be player.y');
+            assert(aabb.w === PLAYER_SIZE, 'aabb.w should be PLAYER_SIZE');
+            assert(aabb.h === PLAYER_SIZE, 'aabb.h should be PLAYER_SIZE');
+        });
+
+        // Test 14: Player movement
+        test('Player movement', () => {
+            const player = new Player(100, 200);
+            const input = new InputManager();
+            input._keysDown.add('w');
+            player.update(1/60, input);
+            assert(player.y < 200, 'Player should move up when W is pressed');
+            assert(player.facingDirection === 'up', 'facingDirection should be up');
+            assert(player.isMoving === true, 'isMoving should be true');
+        });
+
+        // Test 15: Player diagonal movement normalization
+        test('Player diagonal movement normalization', () => {
+            const player1 = new Player(0, 0);
+            const input1 = new InputManager();
+            input1._keysDown.add('w');
+            input1._keysDown.add('d');
+            player1.update(1/60, input1);
+
+            const player2 = new Player(0, 0);
+            const input2 = new InputManager();
+            input2._keysDown.add('d');
+            player2.update(1/60, input2);
+
+            const dist1 = Math.sqrt(player1.x * player1.x + player1.y * player1.y);
+            const dist2 = Math.sqrt(player2.x * player2.x + player2.y * player2.y);
+            
+            assertApprox(dist1, dist2, 0.1, 'Diagonal movement should have same speed as single axis');
+        });
+
+        // Test 16: Player facing direction
+        test('Player facing direction', () => {
+            const player = new Player(100, 200);
+            const input = new InputManager();
+            
+            input._keysDown.add('a');
+            player.update(1/60, input);
+            assert(player.facingDirection === 'left', 'Should face left when A pressed');
+            
+            input._keysDown.clear();
+            input._keysDown.add('s');
+            player.update(1/60, input);
+            assert(player.facingDirection === 'down', 'Should face down when S pressed');
+            
+            input._keysDown.clear();
+            input._keysDown.add('d');
+            player.update(1/60, input);
+            assert(player.facingDirection === 'right', 'Should face right when D pressed');
+        });
+
+        // Test 17: Player isMoving
+        test('Player isMoving', () => {
+            const player = new Player(100, 200);
+            const input = new InputManager();
+            
+            assert(player.isMoving === false, 'Should not be moving initially');
+            
+            input._keysDown.add('w');
+            player.update(1/60, input);
+            assert(player.isMoving === true, 'Should be moving when key pressed');
+            
+            input._keysDown.clear();
+            player.update(1/60, input);
+            assert(player.isMoving === false, 'Should not be moving when no keys pressed');
+        });
+
+        // Test 18: Player exportState
+        test('Player exportState', () => {
+            const player = new Player(100, 200);
+            player.facingDirection = 'left';
+            player.currentRegionId = 'test_region';
+            const state = player.exportState();
+            assert(state.x === 100, 'state.x should be player.x');
+            assert(state.y === 200, 'state.y should be player.y');
+            assert(state.facingDirection === 'left', 'state.facingDirection should match');
+            assert(state.currentRegionId === 'test_region', 'state.currentRegionId should match');
+        });
+
+        // Test 19: Player importState
+        test('Player importState', () => {
+            const player = new Player(0, 0);
+            const state = {
+                x: 100,
+                y: 200,
+                facingDirection: 'up',
+                currentRegionId: 'test_region'
+            };
+            player.importState(state);
+            assert(player.x === 100, 'player.x should be updated');
+            assert(player.y === 200, 'player.y should be updated');
+            assert(player.facingDirection === 'up', 'player.facingDirection should be updated');
+            assert(player.currentRegionId === 'test_region', 'player.currentRegionId should be updated');
+        });
+
+        // Display results
+        const resultsDiv = document.getElementById('results');
+        results.forEach(result => {
+            const div = document.createElement('div');
+            div.className = 'test-result ' + (result.passed ? 'pass' : 'fail');
+            div.innerHTML = result.passed 
+                ? `✓ ${result.name}`
+                : `✗ ${result.name}: ${result.error}`;
+            resultsDiv.appendChild(div);
+        });
+
+        const summaryDiv = document.getElementById('summary');
+        summaryDiv.innerHTML = `总计: ${totalTests} | 通过: ${passedTests} | 失败: ${totalTests - passedTests}`;
+        summaryDiv.style.color = passedTests === totalTests ? '#155724' : '#721c24';
+
+        console.log(`Phase 1 Tests: ${passedTests}/${totalTests} passed`);
+    </script>
+</body>
+</html>

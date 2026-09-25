@@ -1,0 +1,750 @@
+/* 迷雾纪元 - 全局样式 */
+
+/* CSS 变量 - 羊皮纸色系主题 */
+:root {
+    --color-parchment: #f4e8c1;
+    --color-parchment-dark: #e8d9a8;
+    --color-brown-dark: #3d2b1f;
+    --color-brown-medium: #5c4033;
+    --color-brown-light: #8b7355;
+    --color-gold: #d4a574;
+    --color-gold-bright: #ffd700;
+    --color-cream: #fff8e0;
+    --color-shadow: rgba(0, 0, 0, 0.5);
+    --color-overlay: rgba(0, 0, 0, 0.3);
+    
+    --font-medieval: 'Georgia', 'Times New Roman', serif;
+    --font-body: 'Arial', sans-serif;
+    
+    --border-width: 2px;
+    --border-radius: 4px;
+    --padding-small: 8px;
+    --padding-medium: 16px;
+    --padding-large: 24px;
+}
+
+/* 全局重置 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--color-parchment);
+    font-family: var(--font-body);
+    color: var(--color-brown-dark);
+}
+
+/* 游戏容器 */
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--color-parchment);
+}
+
+/* Canvas 全屏 */
+#game-canvas {
+    display: block;
+    background-color: var(--color-parchment);
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+/* UI 层定位 */
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* UI 元素默认不可点击，子元素可覆盖 */
+#ui-layer > * {
+    pointer-events: auto;
+}
+
+/* 羊皮纸面板基础样式 */
+.parchment-panel {
+    background-color: var(--color-parchment);
+    border: var(--border-width) solid var(--color-brown-medium);
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 12px var(--color-shadow);
+    padding: var(--padding-large);
+    font-family: var(--font-medieval);
+}
+
+/* 按钮基础样式 */
+.btn {
+    background-color: var(--color-parchment-dark);
+    border: var(--border-width) solid var(--color-brown-medium);
+    border-radius: var(--border-radius);
+    padding: var(--padding-small) var(--padding-medium);
+    font-family: var(--font-medieval);
+    font-size: 16px;
+    color: var(--color-brown-dark);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    background-color: var(--color-gold);
+    border-color: var(--color-brown-dark);
+    box-shadow: 0 0 8px var(--color-gold-bright);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+/* 淡入淡出动画 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+.fade-out {
+    animation: fadeOut 0.3s ease-out;
+}
+
+/* 滑入滑出动画 */
+@keyframes slideInDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutUp {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+}
+
+.slide-in-down {
+    animation: slideInDown 0.4s ease-out;
+}
+
+.slide-out-up {
+    animation: slideOutUp 0.4s ease-in;
+}
+
+/* 快捷栏 */
+.quickbar {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    gap: 16px;
+    padding: 8px 16px;
+    background-color: rgba(244, 232, 193, 0.85);
+    border: var(--border-width) solid var(--color-brown-medium);
+    border-radius: var(--border-radius);
+    font-family: var(--font-medieval);
+    font-size: 14px;
+    color: var(--color-brown-dark);
+    pointer-events: none;
+}
+
+/* 交互提示 */
+.interaction-prompt {
+    position: absolute;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 20px;
+    background-color: rgba(244, 232, 193, 0.9);
+    border: var(--border-width) solid var(--color-gold);
+    border-radius: var(--border-radius);
+    font-family: var(--font-medieval);
+    font-size: 16px;
+    color: var(--color-brown-dark);
+    white-space: nowrap;
+    pointer-events: none;
+    animation: fadeIn 0.2s ease-in;
+}
+
+/* 区域弹出 */
+.region-popup {
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 32px;
+    background-color: rgba(244, 232, 193, 0.95);
+    border: var(--border-width) solid var(--color-gold);
+    border-radius: var(--border-radius);
+    font-family: var(--font-medieval);
+    font-size: 22px;
+    color: var(--color-brown-dark);
+    text-shadow: 0 1px 2px var(--color-shadow);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* 背包面板 */
+.inventory-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 480px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+.inventory-panel h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+    text-align: center;
+    color: var(--color-brown-dark);
+}
+
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.inventory-slot {
+    width: 100%;
+    aspect-ratio: 1;
+    background-color: var(--color-parchment-dark);
+    border: var(--border-width) solid var(--color-brown-light);
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 4px;
+}
+
+.inventory-slot:hover {
+    border-color: var(--color-gold);
+}
+
+.inventory-slot.selected {
+    border-color: var(--color-gold-bright);
+    box-shadow: 0 0 8px var(--color-gold-bright);
+}
+
+.inventory-slot.empty {
+    cursor: default;
+    opacity: 0.4;
+}
+
+.item-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+}
+
+.item-name {
+    font-size: 11px;
+    text-align: center;
+    color: var(--color-brown-dark);
+    font-family: var(--font-medieval);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.inventory-description {
+    padding: 12px;
+    background-color: var(--color-cream);
+    border: 1px solid var(--color-brown-light);
+    border-radius: var(--border-radius);
+    margin-bottom: 16px;
+    min-height: 60px;
+    font-family: var(--font-medieval);
+    font-size: 14px;
+    color: var(--color-brown-medium);
+}
+
+.inventory-description h3 {
+    font-size: 16px;
+    margin-bottom: 4px;
+    color: var(--color-brown-dark);
+}
+
+.inventory-panel .btn {
+    display: block;
+    width: 100%;
+}
+
+/* 事件提示 */
+.event-toast {
+    position: absolute;
+    top: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    background-color: rgba(244, 232, 193, 0.95);
+    border: var(--border-width) solid var(--color-gold);
+    border-radius: var(--border-radius);
+    font-family: var(--font-medieval);
+    font-size: 16px;
+    color: var(--color-brown-dark);
+    text-align: center;
+    pointer-events: none;
+    box-shadow: 0 4px 12px var(--color-shadow);
+    max-width: 400px;
+}
+
+.event-toast strong {
+    display: block;
+    font-size: 18px;
+    margin-bottom: 4px;
+    color: var(--color-brown-dark);
+}
+
+.event-toast span {
+    font-size: 14px;
+    color: var(--color-brown-medium);
+}
+
+/* ===== Phase 6: Title Screen ===== */
+
+.title-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+    pointer-events: auto;
+}
+
+.title-content {
+    text-align: center;
+    font-family: var(--font-medieval);
+    z-index: 1;
+}
+
+.title-main {
+    font-size: 48px;
+    color: var(--color-brown-dark);
+    text-shadow: 0 2px 4px var(--color-shadow);
+    margin-bottom: 8px;
+    letter-spacing: 6px;
+}
+
+.title-sub {
+    font-size: 20px;
+    color: var(--color-brown-light);
+    font-style: italic;
+    margin-bottom: 48px;
+    letter-spacing: 2px;
+}
+
+.title-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 48px;
+}
+
+.title-btn {
+    width: 220px;
+    font-size: 20px;
+    padding: 12px 24px;
+}
+
+.title-footer {
+    font-size: 13px;
+    color: var(--color-brown-light);
+    line-height: 1.8;
+}
+
+.title-mode #game-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* ===== Phase 6: Pause Menu ===== */
+
+.pause-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 150;
+    pointer-events: auto;
+}
+
+.pause-menu {
+    min-width: 280px;
+    text-align: center;
+}
+
+.pause-menu h2 {
+    font-size: 24px;
+    margin-bottom: 24px;
+    color: var(--color-brown-dark);
+}
+
+.menu-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.menu-item {
+    padding: 10px 20px;
+    font-family: var(--font-medieval);
+    font-size: 18px;
+    color: var(--color-brown-dark);
+    cursor: pointer;
+    border: var(--border-width) solid transparent;
+    border-radius: var(--border-radius);
+    transition: all 0.15s ease;
+}
+
+.menu-item:hover,
+.menu-item.selected {
+    background-color: var(--color-gold);
+    border-color: var(--color-brown-dark);
+}
+
+/* ===== Phase 6: Panel Overlays ===== */
+
+.panel-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 150;
+    pointer-events: auto;
+}
+
+/* ===== Phase 6: Settings Panel ===== */
+
+.settings-panel {
+    width: 400px;
+    text-align: center;
+}
+
+.settings-panel h2 {
+    font-size: 22px;
+    margin-bottom: 20px;
+    color: var(--color-brown-dark);
+}
+
+.settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--color-cream);
+    border-radius: var(--border-radius);
+    font-family: var(--font-medieval);
+    font-size: 16px;
+}
+
+.setting-toggle {
+    min-width: 60px;
+    font-size: 14px;
+    padding: 4px 12px;
+}
+
+.settings-divider {
+    height: 1px;
+    background-color: var(--color-brown-light);
+    margin: 16px 0;
+}
+
+.btn-danger {
+    background-color: #c0392b;
+    color: #fff;
+    border-color: #922b21;
+}
+
+.btn-danger:hover {
+    background-color: #e74c3c;
+    border-color: #c0392b;
+    box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
+}
+
+.reset-hint {
+    font-size: 12px;
+    color: var(--color-brown-light);
+    margin: 8px 0 16px;
+}
+
+.settings-panel .btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+}
+
+/* ===== Phase 6: Confirm Dialog ===== */
+
+.confirm-dialog {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 300;
+    pointer-events: auto;
+}
+
+.confirm-content {
+    text-align: center;
+    min-width: 320px;
+}
+
+.confirm-content p {
+    font-family: var(--font-medieval);
+    font-size: 18px;
+    margin-bottom: 8px;
+}
+
+.confirm-warn {
+    font-size: 14px;
+    color: #c0392b;
+    margin-bottom: 20px;
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.confirm-buttons .btn {
+    min-width: 120px;
+}
+
+/* ===== Phase 6: Map Overview ===== */
+
+.map-panel {
+    width: 70%;
+    max-width: 700px;
+    max-height: 75vh;
+    overflow-y: auto;
+    text-align: center;
+}
+
+.map-panel h2 {
+    font-size: 22px;
+    margin-bottom: 16px;
+    color: var(--color-brown-dark);
+}
+
+.map-content {
+    margin-bottom: 16px;
+}
+
+.map-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+}
+
+.map-region {
+    width: 140px;
+    height: 100px;
+    border: var(--border-width) solid;
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-medieval);
+    position: relative;
+    overflow: hidden;
+}
+
+.map-region.visited {
+    background-color: var(--color-cream);
+}
+
+.map-region.unvisited {
+    border-style: dashed;
+    border-color: #aaa;
+    background-color: var(--color-parchment-dark);
+    opacity: 0.6;
+}
+
+.map-region-name {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--color-brown-dark);
+    z-index: 1;
+}
+
+.map-region-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.3;
+}
+
+.unvisited-area {
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 4px,
+        rgba(0,0,0,0.05) 4px,
+        rgba(0,0,0,0.05) 8px
+    );
+}
+
+.map-discovery-mark {
+    position: absolute;
+    font-size: 12px;
+    color: var(--color-gold-bright);
+    z-index: 1;
+}
+
+.map-legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    font-family: var(--font-medieval);
+    font-size: 13px;
+    color: var(--color-brown-medium);
+    margin-bottom: 16px;
+}
+
+/* ===== Phase 6: FPS Counter ===== */
+
+.fps-counter {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 10px;
+    background-color: rgba(244, 232, 193, 0.85);
+    border: 1px solid var(--color-brown-light);
+    border-radius: var(--border-radius);
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--color-brown-dark);
+    pointer-events: none;
+}
+
+/* ===== Phase 6: Minimap ===== */
+
+.minimap-wrapper {
+    position: absolute;
+    bottom: 60px;
+    left: 16px;
+    pointer-events: none;
+}
+
+.minimap {
+    border: var(--border-width) solid var(--color-brown-medium);
+    border-radius: var(--border-radius);
+    background-color: rgba(244, 232, 193, 0.7);
+}
+
+/* ===== Phase 7: HP Bar ===== */
+
+.hp-bar {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    width: 120px;
+    height: 20px;
+    background-color: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--color-brown-medium);
+    border-radius: 3px;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.hp-fill {
+    height: 100%;
+    width: 100%;
+    background-color: #5a5;
+    transition: width 0.2s ease;
+}
+
+.hp-text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 11px;
+    font-family: var(--font-medieval);
+    text-shadow: 1px 1px 2px #000;
+}

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Phase 7 Tests - Guardian Combat System</title>
+    <style>
+        body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; padding: 20px; }
+        .pass { color: #5aff5a; }
+        .fail { color: #ff5a5a; }
+        .section { color: #ffd700; margin-top: 16px; font-weight: bold; }
+        #results { margin-top: 20px; padding: 16px; background: #2a2a3e; border-radius: 4px; }
+        h1 { color: #ffd700; }
+    </style>
+</head>
+<body>
+    <h1>Phase 7 Tests - Guardian Combat System</h1>
+    <div id="output"></div>
+    <div id="results"></div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/event-bus.js"></script>
+    <script src="js/input-manager.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/collision.js"></script>
+    <script src="js/region-manager.js"></script>
+    <script src="js/map-data.js"></script>
+    <script src="js/item-data.js"></script>
+    <script src="js/entity.js"></script>
+    <script src="js/world-map.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/discovery-log.js"></script>
+    <script src="js/ui-manager.js"></script>
+    <script src="js/save-manager.js"></script>
+    <script src="js/day-night-cycle.js"></script>
+    <script src="js/world-events.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/game.js"></script>
+    <script>
+        let passed = 0;
+        let failed = 0;
+        const output = document.getElementById('output');
+
+        function section(name) {
+            const el = document.createElement('div');
+            el.className = 'section';
+            el.textContent = '--- ' + name + ' ---';
+            output.appendChild(el);
+        }
+
+        function test(name, fn) {
+            try {
+                fn();
+                passed++;
+                const el = document.createElement('div');
+                el.className = 'pass';
+                el.textContent = '  PASS: ' + name;
+                output.appendChild(el);
+            } catch (e) {
+                failed++;
+                const el = document.createElement('div');
+                el.className = 'fail';
+                el.textContent = '  FAIL: ' + name + ' - ' + e.message;
+                output.appendChild(el);
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) throw new Error(message || 'Assertion failed');
+        }
+
+        // ===== Guardian Constants =====
+        section('Guardian Constants');
+
+        test('GUARDIAN_ATTACK_INTERVAL is 0.5', () => {
+            assert(GUARDIAN_ATTACK_INTERVAL === 0.5, 'Expected 0.5, got ' + GUARDIAN_ATTACK_INTERVAL);
+        });
+
+        test('GUARDIAN_DAMAGE is 1', () => {
+            assert(GUARDIAN_DAMAGE === 1, 'Expected 1, got ' + GUARDIAN_DAMAGE);
+        });
+
+        test('GUARDIAN_RANGE_TILES is 1', () => {
+            assert(GUARDIAN_RANGE_TILES === 1, 'Expected 1, got ' + GUARDIAN_RANGE_TILES);
+        });
+
+        test('PLAYER_MAX_HP is 5', () => {
+            assert(PLAYER_MAX_HP === 5, 'Expected 5, got ' + PLAYER_MAX_HP);
+        });
+
+        // ===== Guardian Class =====
+        section('Guardian Class');
+
+        test('Guardian constructor sets properties', () => {
+            const g = new Guardian({ id: 'g1', name: 'Test Guardian', tileX: 10, tileY: 20, regionId: 'test' });
+            assert(g.id === 'g1', 'id mismatch');
+            assert(g.name === 'Test Guardian', 'name mismatch');
+            assert(g.x === 10 * TILE_SIZE, 'x mismatch');
+            assert(g.y === 20 * TILE_SIZE, 'y mismatch');
+            assert(g.hp === 1, 'hp should be 1');
+            assert(g.defeated === false, 'should not be defeated');
+            assert(g.regionId === 'test', 'regionId mismatch');
+        });
+
+        test('Guardian getAABB returns correct bounds', () => {
+            const g = new Guardian({ id: 'g1', name: 'Test', tileX: 5, tileY: 5 });
+            const aabb = g.getAABB();
+            assert(aabb.x === 5 * TILE_SIZE, 'x mismatch');
+            assert(aabb.y === 5 * TILE_SIZE, 'y mismatch');
+            assert(aabb.w === TILE_SIZE, 'w mismatch');
+            assert(aabb.h === TILE_SIZE, 'h mismatch');
+        });
+
+        test('Guardian takeDamage defeats with 1 damage', () => {
+            const g = new Guardian({ id: 'g1', name: 'Test', tileX: 0, tileY: 0 });
+            const result = g.takeDamage(1);
+            assert(result === true, 'should return true when defeated');
+            assert(g.defeated === true, 'should be defeated');
+            assert(g.hp === 0, 'hp should be 0');
+        });
+
+        test('Guardian takeDamage on defeated returns false', () => {
+            const g = new Guardian({ id: 'g1', name: 'Test', tileX: 0, tileY: 0 });
+            g.takeDamage(1);
+            const result = g.takeDamage(1);
+            assert(result === false, 'should return false when already defeated');
+        });
+
+        test('Guardian isDefeated returns correct state', () => {
+            const g = new Guardian({ id: 'g1', name: 'Test', tileX: 0, tileY: 0 });
+            assert(g.isDefeated() === false, 'should not be defeated initially');
+            g.takeDamage(1);
+            assert(g.isDefeated() === true, 'should be defeated after damage');
+        });
+
+        test('Guardian update returns null when defeated', () => {
+            const g = new Guardian({ id: 'g1', name: 'Test', tileX: 0, tileY: 0 });
+            g.takeDamage(1);
+            const playerAABB = { x: 0, y: 0, w: 24, h: 24 };
+            const result = g.update(0.5, playerAABB);
+            assert(result === null, 'should return null when defeated');
+        });
+
+        test('Guardian update returns null when player out of range', () => {
+            const g = new Guardian({ id: 'g1', name: 'Test', tileX: 0, tileY: 0 });
+            const playerAABB = { x: 500, y: 500, w: 24, h: 24 };
+            const result = g.update(0.5, playerAABB);
+            assert(result === null, 'should return null when player far away');
+        });
+
+        test('Guardian update returns attack when player in range and timer expires', () => {
+            const g = new Guardian({ id: 'g1', name: 'Test', tileX: 0, tileY: 0 });
+            const playerAABB = { x: 10, y: 10, w: 24, h: 24 };
+            g.update(0.3, playerAABB);
+            const result = g.update(0.3, playerAABB);
+            assert(result !== null, 'should return attack result');
+            assert(result.damage === GUARDIAN_DAMAGE, 'damage should match');
+        });
+
+        test('Guardian update resets timer when player leaves range', () => {
+            const g = new Guardian({ id: 'g1', name: 'Test', tileX: 0, tileY: 0 });
+            const nearAABB = { x: 10, y: 10, w: 24, h: 24 };
+            g.update(0.3, nearAABB);
+            const farAABB = { x: 500, y: 500, w: 24, h: 24 };
+            g.update(0.1, farAABB);
+            assert(g.attackTimer === 0, 'timer should reset when player leaves');
+        });
+
+        test('Guardian getState/setState for persistence', () => {
+            const g = new Guardian({ id: 'g1', name: 'Test', tileX: 0, tileY: 0 });
+            const state = g.getState();
+            assert(state.defeated === false, 'initial state should not be defeated');
+
+            g.takeDamage(1);
+            const state2 = g.getState();
+            assert(state2.defeated === true, 'state should reflect defeat');
+
+            const g2 = new Guardian({ id: 'g2', name: 'Test2', tileX: 0, tileY: 0 });
+            g2.setState({ defeated: true });
+            assert(g2.isDefeated() === true, 'setState should restore defeated state');
+        });
+
+        // ===== Player HP =====
+        section('Player HP');
+
+        test('Player has hp and maxHp', () => {
+            const p = new Player(0, 0);
+            assert(p.hp === PLAYER_MAX_HP, 'hp should be PLAYER_MAX_HP');
+            assert(p.maxHp === PLAYER_MAX_HP, 'maxHp should be PLAYER_MAX_HP');
+        });
+
+        test('Player takeDamage reduces HP', () => {
+            const p = new Player(0, 0);
+            p.takeDamage(2);
+            assert(p.hp === 3, 'hp should be 3 after 2 damage');
+        });
+
+        test('Player takeDamage does not go below 0', () => {
+            const p = new Player(0, 0);
+            p.takeDamage(10);
+            assert(p.hp === 0, 'hp should be 0');
+        });
+
+        test('Player heal restores to max', () => {
+            const p = new Player(0, 0);
+            p.takeDamage(3);
+            p.heal();
+            assert(p.hp === PLAYER_MAX_HP, 'hp should be full after heal');
+        });
+
+        test('Player isDead returns true at 0 HP', () => {
+            const p = new Player(0, 0);
+            assert(p.isDead() === false, 'should not be dead initially');
+            p.takeDamage(PLAYER_MAX_HP);
+            assert(p.isDead() === true, 'should be dead at 0 HP');
+        });
+
+        test('Player exportState includes hp', () => {
+            const p = new Player(100, 200);
+            p.takeDamage(2);
+            const state = p.exportState();
+            assert(state.hp === 3, 'exported hp should be 3');
+            assert(state.x === 100, 'x should be exported');
+        });
+
+        test('Player importState restores hp', () => {
+            const p = new Player(0, 0);
+            p.importState({ x: 100, y: 200, facingDirection: 'up', currentRegionId: 'test', hp: 2 });
+            assert(p.hp === 2, 'hp should be restored to 2');
+            assert(p.x === 100, 'x should be restored');
+        });
+
+        test('Player importState defaults hp to max if missing', () => {
+            const p = new Player(0, 0);
+            p.importState({ x: 100, y: 200, facingDirection: 'up', currentRegionId: null });
+            assert(p.hp === PLAYER_MAX_HP, 'hp should default to max');
+        });
+
+        // ===== Region Guardian Data =====
+        section('Region Guardian Data');
+
+        test('Three guardians defined across regions', () => {
+            const rm = new RegionManager();
+            const allRegions = rm.getAllRegions();
+            let totalGuardians = 0;
+            for (const region of allRegions) {
+                if (region.guardians) totalGuardians += region.guardians.length;
+            }
+            assert(totalGuardians === 3, 'Expected 3 guardians, got ' + totalGuardians);
+        });
+
+        test('Each guardian has required properties', () => {
+            const rm = new RegionManager();
+            const allRegions = rm.getAllRegions();
+            for (const region of allRegions) {
+                if (!region.guardians) continue;
+                for (const g of region.guardians) {
+                    assert(g.id, 'guardian missing id in ' + region.id);
+                    assert(g.name, 'guardian missing name in ' + region.id);
+                    assert(g.tileX !== undefined, 'guardian missing tileX in ' + region.id);
+                    assert(g.tileY !== undefined, 'guardian missing tileY in ' + region.id);
+                    assert(g.regionId, 'guardian missing regionId in ' + region.id);
+                }
+            }
+        });
+
+        test('Guardian IDs are unique', () => {
+            const rm = new RegionManager();
+            const allRegions = rm.getAllRegions();
+            const ids = new Set();
+            for (const region of allRegions) {
+                if (!region.guardians) continue;
+                for (const g of region.guardians) {
+                    assert(!ids.has(g.id), 'Duplicate guardian id: ' + g.id);
+                    ids.add(g.id);
+                }
+            }
+        });
+
+        // ===== WorldMap Guardian Integration =====
+        section('WorldMap Guardian Integration');
+
+        test('WorldMap builds guardians from region data', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const guardians = wm.getAllGuardians();
+            assert(guardians.length === 3, 'Expected 3 guardians, got ' + guardians.length);
+        });
+
+        test('getGuardianById returns correct guardian', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const g = wm.getGuardianById('guardian_forest');
+            assert(g !== null, 'guardian_forest should exist');
+            assert(g.name === '\u6797\u5730\u5B88\u536B\u8005', 'name should match');
+        });
+
+        test('getGuardianById returns null for unknown id', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const g = wm.getGuardianById('nonexistent');
+            assert(g === null, 'should return null for unknown id');
+        });
+
+        test('getGuardiansNear returns nearby guardians', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const g = wm.getGuardianById('guardian_forest');
+            const playerAABB = { x: g.x + 10, y: g.y + 10, w: 24, h: 24 };
+            const nearby = wm.getGuardiansNear(playerAABB);
+            assert(nearby.length >= 1, 'should find at least 1 nearby guardian');
+            assert(nearby[0].id === 'guardian_forest', 'should be guardian_forest');
+        });
+
+        test('getGuardiansNear excludes defeated guardians', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const g = wm.getGuardianById('guardian_forest');
+            g.takeDamage(1);
+            const playerAABB = { x: g.x + 10, y: g.y + 10, w: 24, h: 24 };
+            const nearby = wm.getGuardiansNear(playerAABB);
+            assert(nearby.length === 0, 'should not include defeated guardian');
+        });
+
+        test('getObstaclesInRect includes alive guardians', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const g = wm.getGuardianById('guardian_forest');
+            const rect = { x: g.x - 10, y: g.y - 10, w: TILE_SIZE + 20, h: TILE_SIZE + 20 };
+            const obstacles = wm.getObstaclesInRect(rect);
+            const hasGuardian = obstacles.some(o => o.x === g.x && o.y === g.y);
+            assert(hasGuardian, 'should include alive guardian as obstacle');
+        });
+
+        test('getObstaclesInRect excludes defeated guardians', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const g = wm.getGuardianById('guardian_forest');
+            g.takeDamage(1);
+            const rect = { x: g.x - 10, y: g.y - 10, w: TILE_SIZE + 20, h: TILE_SIZE + 20 };
+            const obstacles = wm.getObstaclesInRect(rect);
+            const hasGuardian = obstacles.some(o => o.x === g.x && o.y === g.y && o.w === TILE_SIZE && o.h === TILE_SIZE);
+            assert(!hasGuardian, 'should not include defeated guardian as obstacle');
+        });
+
+        test('exportStates includes guardian states', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const states = wm.exportStates();
+            assert(states['guardian_forest'] !== undefined, 'should include guardian_forest state');
+            assert(states['guardian_temple'] !== undefined, 'should include guardian_temple state');
+            assert(states['guardian_cavern'] !== undefined, 'should include guardian_cavern state');
+        });
+
+        test('importStates restores guardian defeated state', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            wm.importStates({
+                'guardian_forest': { defeated: true }
+            });
+            const g = wm.getGuardianById('guardian_forest');
+            assert(g.isDefeated() === true, 'guardian_forest should be defeated after import');
+        });
+
+        // ===== Game Class Methods =====
+        section('Game Class Methods');
+
+        test('Game has _updateGuardians method', () => {
+            const game = new Game();
+            assert(typeof game._updateGuardians === 'function', '_updateGuardians should exist');
+        });
+
+        test('Game has _respawnPlayer method', () => {
+            const game = new Game();
+            assert(typeof game._respawnPlayer === 'function', '_respawnPlayer should exist');
+        });
+
+        // ===== Summary =====
+        const results = document.getElementById('results');
+        const total = passed + failed;
+        results.innerHTML = `<strong>Results: ${passed}/${total} passed, ${failed} failed</strong>`;
+        if (failed === 0) {
+            results.innerHTML += '<br><span class="pass">All tests passed!</span>';
+        } else {
+            results.innerHTML += '<br><span class="fail">Some tests failed.</span>';
+        }
+    </script>
+</body>
+</html>

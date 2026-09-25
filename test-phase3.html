@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Phase 3 Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f4e8c1;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .fail {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Phase 3 测试报告</h1>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/event-bus.js"></script>
+    <script src="js/input-manager.js"></script>
+    <script src="js/collision.js"></script>
+    <script src="js/region-manager.js"></script>
+    <script src="js/map-data.js"></script>
+    <script src="js/item-data.js"></script>
+    <script src="js/entity.js"></script>
+    <script src="js/world-map.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/discovery-log.js"></script>
+    <script>
+        const results = [];
+        let totalTests = 0;
+        let passedTests = 0;
+
+        function test(name, fn) {
+            totalTests++;
+            try {
+                fn();
+                passedTests++;
+                results.push({ name, passed: true, error: null });
+            } catch (error) {
+                results.push({ name, passed: false, error: error.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+
+        // === ITEM_DEFS ===
+
+        test('ITEM_DEFS exists and has 20 items', () => {
+            assert(Array.isArray(ITEM_DEFS), 'ITEM_DEFS should be an array');
+            assert(ITEM_DEFS.length === 20, 'Should have 20 items');
+        });
+
+        test('ITEM_DEFS structure', () => {
+            const item = ITEM_DEFS[0];
+            assert(typeof item.id === 'string', 'Item should have id');
+            assert(typeof item.name === 'string', 'Item should have name');
+            assert(typeof item.description === 'string', 'Item should have description');
+            assert(typeof item.category === 'string', 'Item should have category');
+            assert(typeof item.iconShape === 'string', 'Item should have iconShape');
+            assert(typeof item.iconColor === 'string', 'Item should have iconColor');
+            assert(typeof item.isEasterEgg === 'boolean', 'Item should have isEasterEgg');
+        });
+
+        test('getItemDef returns correct item', () => {
+            const def = getItemDef('herb_moonpetal');
+            assert(def !== undefined, 'Should find item by id');
+            assert(def.name === '月瓣草', 'Should return correct item');
+        });
+
+        test('getItemDef returns undefined for unknown id', () => {
+            const def = getItemDef('nonexistent');
+            assert(def === undefined, 'Should return undefined for unknown id');
+        });
+
+        // === Interactable ===
+
+        test('Interactable constructor', () => {
+            const inter = new Interactable({
+                id: 'test1',
+                type: 'collectible',
+                itemId: 'herb_moonpetal',
+                bounds: { x: 0, y: 0, w: 32, h: 32 },
+                promptText: 'Pick up [E]'
+            });
+            assert(inter.id === 'test1', 'Should have id');
+            assert(inter.type === 'collectible', 'Should have type');
+            assert(inter.itemId === 'herb_moonpetal', 'Should have itemId');
+            assert(inter.state.cleared === false, 'Should start not cleared');
+            assert(inter.state.visible === true, 'Should start visible');
+        });
+
+        test('Interactable.getPrompt returns text when visible', () => {
+            const inter = new Interactable({
+                id: 'test2',
+                type: 'collectible',
+                itemId: 'herb_moonpetal',
+                bounds: { x: 0, y: 0, w: 32, h: 32 },
+                promptText: 'Pick up [E]'
+            });
+            assert(inter.getPrompt() === 'Pick up [E]', 'Should return prompt text');
+        });
+
+        test('Interactable.getPrompt returns null when cleared', () => {
+            const inter = new Interactable({
+                id: 'test3',
+                type: 'collectible',
+                itemId: 'herb_moonpetal',
+                bounds: { x: 0, y: 0, w: 32, h: 32 },
+                promptText: 'Pick up [E]'
+            });
+            inter.state.cleared = true;
+            assert(inter.getPrompt() === null, 'Should return null when cleared');
+        });
+
+        test('Interactable.getBounds', () => {
+            const inter = new Interactable({
+                id: 'test4',
+                type: 'collectible',
+                itemId: 'herb_moonpetal',
+                bounds: { x: 100, y: 200, w: 32, h: 32 },
+                promptText: 'Pick up [E]'
+            });
+            const b = inter.getBounds();
+            assert(b.x === 100 && b.y === 200, 'Should return correct bounds');
+        });
+
+        test('Interactable.interact adds item and marks cleared', () => {
+            const bus = new EventBus();
+            const inv = new Inventory(bus);
+            const log = new DiscoveryLog(bus);
+            const inter = new Interactable({
+                id: 'test5',
+                type: 'collectible',
+                itemId: 'herb_moonpetal',
+                bounds: { x: 0, y: 0, w: 32, h: 32 },
+                promptText: 'Pick up [E]'
+            });
+            const player = new Player(0, 0);
+            const result = inter.interact(player, inv, log);
+            assert(result === true, 'Interact should return true');
+            assert(inter.state.cleared === true, 'Should be marked cleared');
+            assert(inv.hasItem('herb_moonpetal'), 'Inventory should have the item');
+        });
+
+        test('Interactable getState/setState', () => {
+            const inter = new Interactable({
+                id: 'test6',
+                type: 'collectible',
+                itemId: 'herb_moonpetal',
+                bounds: { x: 0, y: 0, w: 32, h: 32 },
+                promptText: 'Pick up [E]'
+            });
+            inter.setState({ activated: true, visible: false, cleared: true });
+            const s = inter.getState();
+            assert(s.cleared === true, 'State should reflect setState');
+            assert(s.visible === false, 'State should reflect setState');
+        });
+
+        // === Inventory ===
+
+        test('Inventory constructor', () => {
+            const bus = new EventBus();
+            const inv = new Inventory(bus);
+            assert(inv.getCount() === 0, 'Should start empty');
+        });
+
+        test('Inventory.addItem', () => {
+            const bus = new EventBus();
+            const inv = new Inventory(bus);
+            const result = inv.addItem('herb_moonpetal');
+            assert(result === true, 'Should return true on success');
+            assert(inv.getCount() === 1, 'Count should be 1');
+        });
+
+        test('Inventory.addItem unknown item', () => {
+            const bus = new EventBus();
+            const inv = new Inventory(bus);
+            const result = inv.addItem('nonexistent_item');
+            assert(result === false, 'Should return false for unknown item');
+            assert(inv.getCount() === 0, 'Count should remain 0');
+        });
+
+        test('Inventory.hasItem', () => {
+            const bus = new EventBus();
+            const inv = new Inventory(bus);
+            inv.addItem('coin_ancient');
+            assert(inv.hasItem('coin_ancient') === true, 'Should have added item');
+            assert(inv.hasItem('herb_moonpetal') === false, 'Should not have other item');
+        });
+
+        test('Inventory.getItems returns all items', () => {
+            const bus = new EventBus();
+            const inv = new Inventory(bus);
+            inv.addItem('herb_moonpetal');
+            inv.addItem('coin_ancient');
+            const items = inv.getItems();
+            assert(items.length === 2, 'Should have 2 items');
+            const ids = items.map(i => i.id);
+            assert(ids.includes('herb_moonpetal'), 'Should contain herb_moonpetal');
+            assert(ids.includes('coin_ancient'), 'Should contain coin_ancient');
+        });
+
+        test('Inventory emits item:collected event', () => {
+            const bus = new EventBus();
+            const inv = new Inventory(bus);
+            let eventData = null;
+            bus.on('item:collected', (data) => { eventData = data; });
+            inv.addItem('herb_sunroot');
+            assert(eventData !== null, 'Event should be emitted');
+            assert(eventData.itemId === 'herb_sunroot', 'Event should contain itemId');
+        });
+
+        test('Inventory export/import', () => {
+            const bus = new EventBus();
+            const inv1 = new Inventory(bus);
+            inv1.addItem('herb_moonpetal');
+            inv1.addItem('coin_ancient');
+            const exported = inv1.export();
+
+            const inv2 = new Inventory(bus);
+            inv2.import(exported);
+            assert(inv2.getCount() === 2, 'Imported count should match');
+            assert(inv2.hasItem('herb_moonpetal'), 'Should have first item');
+            assert(inv2.hasItem('coin_ancient'), 'Should have second item');
+        });
+
+        // === DiscoveryLog ===
+
+        test('DiscoveryLog constructor', () => {
+            const bus = new EventBus();
+            const log = new DiscoveryLog(bus);
+            assert(log.getEntries().length === 0, 'Should start empty');
+        });
+
+        test('DiscoveryLog.record', () => {
+            const bus = new EventBus();
+            const log = new DiscoveryLog(bus);
+            const result = log.record('location', 'travelers_camp', 'A warm camp');
+            assert(result === true, 'Should return true on new record');
+            assert(log.getEntries().length === 1, 'Should have 1 entry');
+        });
+
+        test('DiscoveryLog.record dedup', () => {
+            const bus = new EventBus();
+            const log = new DiscoveryLog(bus);
+            log.record('location', 'travelers_camp', 'A warm camp');
+            const result = log.record('location', 'travelers_camp', 'A warm camp');
+            assert(result === false, 'Should return false for duplicate');
+            assert(log.getEntries().length === 1, 'Should still have 1 entry');
+        });
+
+        test('DiscoveryLog.hasRecorded', () => {
+            const bus = new EventBus();
+            const log = new DiscoveryLog(bus);
+            log.record('location', 'travelers_camp', 'A warm camp');
+            assert(log.hasRecorded('travelers_camp') === true, 'Should find recorded id');
+            assert(log.hasRecorded('misty_forest') === false, 'Should not find unrecorded id');
+        });
+
+        test('DiscoveryLog emits discovery:recorded event', () => {
+            const bus = new EventBus();
+            const log = new DiscoveryLog(bus);
+            let eventData = null;
+            bus.on('discovery:recorded', (data) => { eventData = data; });
+            log.record('location', 'travelers_camp', 'A warm camp');
+            assert(eventData !== null, 'Event should be emitted');
+            assert(eventData.type === 'location', 'Event should have type');
+            assert(eventData.id === 'travelers_camp', 'Event should have id');
+        });
+
+        test('DiscoveryLog.getLocationIds', () => {
+            const bus = new EventBus();
+            const log = new DiscoveryLog(bus);
+            log.record('location', 'travelers_camp', 'desc1');
+            log.record('easter_egg', 'crystal1', 'desc2');
+            log.record('location', 'misty_forest', 'desc3');
+            const locIds = log.getLocationIds();
+            assert(locIds.length === 2, 'Should have 2 location ids');
+            assert(locIds.includes('travelers_camp'), 'Should include travelers_camp');
+            assert(locIds.includes('misty_forest'), 'Should include misty_forest');
+        });
+
+        test('DiscoveryLog.getEasterEggIds', () => {
+            const bus = new EventBus();
+            const log = new DiscoveryLog(bus);
+            log.record('location', 'travelers_camp', 'desc1');
+            log.record('easter_egg', 'crystal1', 'desc2');
+            const eggIds = log.getEasterEggIds();
+            assert(eggIds.length === 1, 'Should have 1 easter egg id');
+            assert(eggIds[0] === 'crystal1', 'Should include crystal1');
+        });
+
+        test('DiscoveryLog export/import', () => {
+            const bus = new EventBus();
+            const log1 = new DiscoveryLog(bus);
+            log1.record('location', 'travelers_camp', 'desc1');
+            log1.record('easter_egg', 'crystal1', 'desc2');
+            const exported = log1.export();
+
+            const log2 = new DiscoveryLog(bus);
+            log2.import(exported);
+            assert(log2.getEntries().length === 2, 'Imported should have 2 entries');
+            assert(log2.hasRecorded('travelers_camp'), 'Should have location');
+            assert(log2.hasRecorded('crystal1'), 'Should have easter egg');
+        });
+
+        // === WorldMap interactables ===
+
+        test('WorldMap builds interactables from regions', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const all = wm.getAllInteractables();
+            assert(all.length > 0, 'Should have interactables from region data');
+        });
+
+        test('WorldMap.getInteractableById', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const obj = wm.getInteractableById('tc_herb1');
+            assert(obj !== null, 'Should find interactable by id');
+            assert(obj.itemId === 'herb_moonpetal', 'Should have correct itemId');
+        });
+
+        test('WorldMap.getInteractablesInRect', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm = new WorldMap(tileMap, rm);
+            const rect = { x: 89 * TILE_SIZE, y: 89 * TILE_SIZE, w: 3 * TILE_SIZE, h: 3 * TILE_SIZE };
+            const nearby = wm.getInteractablesInRect(rect);
+            assert(nearby.length > 0, 'Should find interactables in rect near tc_herb1');
+        });
+
+        test('WorldMap interactable states persist via export/import', () => {
+            const rm = new RegionManager();
+            const tileMap = generateMapData();
+            const wm1 = new WorldMap(tileMap, rm);
+            const obj = wm1.getInteractableById('tc_herb1');
+            obj.state.cleared = true;
+            const exported = wm1.exportStates();
+
+            const wm2 = new WorldMap(tileMap, rm);
+            wm2.importStates(exported);
+            const obj2 = wm2.getInteractableById('tc_herb1');
+            assert(obj2.state.cleared === true, 'Cleared state should persist');
+        });
+
+        // === Player interaction ===
+
+        test('Player.getFacingOffset returns rect', () => {
+            const player = new Player(100, 100);
+            player.facingDirection = 'down';
+            const rect = player.getFacingOffset();
+            assert(typeof rect.x === 'number', 'Should have x');
+            assert(typeof rect.y === 'number', 'Should have y');
+            assert(typeof rect.w === 'number', 'Should have w');
+            assert(typeof rect.h === 'number', 'Should have h');
+        });
+
+        test('Player.getFacingOffset direction changes', () => {
+            const player = new Player(100, 100);
+            player.facingDirection = 'up';
+            const upRect = player.getFacingOffset();
+            player.facingDirection = 'down';
+            const downRect = player.getFacingOffset();
+            assert(upRect.y < downRect.y, 'Up rect should be above down rect');
+        });
+
+        // === Region interactable data ===
+
+        test('Each region has interactables defined', () => {
+            for (const region of REGIONS) {
+                assert(Array.isArray(region.interactables), `${region.id} should have interactables array`);
+                assert(region.interactables.length > 0, `${region.id} should have at least 1 interactable`);
+            }
+        });
+
+        test('Interactable definitions have required fields', () => {
+            for (const region of REGIONS) {
+                for (const def of region.interactables) {
+                    assert(typeof def.id === 'string', `${region.id} interactable should have id`);
+                    assert(typeof def.type === 'string', `${region.id} interactable should have type`);
+                    assert(typeof def.itemId === 'string', `${region.id} interactable should have itemId`);
+                    assert(typeof def.tileX === 'number', `${region.id} interactable should have tileX`);
+                    assert(typeof def.tileY === 'number', `${region.id} interactable should have tileY`);
+                    assert(typeof def.promptText === 'string', `${region.id} interactable should have promptText`);
+                    assert(getItemDef(def.itemId) !== undefined, `${region.id} interactable itemId should be valid`);
+                }
+            }
+        });
+
+        // Display results
+        const resultsDiv = document.getElementById('results');
+        results.forEach(result => {
+            const div = document.createElement('div');
+            div.className = 'test-result ' + (result.passed ? 'pass' : 'fail');
+            div.innerHTML = result.passed 
+                ? `✓ ${result.name}`
+                : `✗ ${result.name}: ${result.error}`;
+            resultsDiv.appendChild(div);
+        });
+
+        const summaryDiv = document.getElementById('summary');
+        summaryDiv.innerHTML = `总计: ${totalTests} | 通过: ${passedTests} | 失败: ${totalTests - passedTests}`;
+        summaryDiv.style.color = passedTests === totalTests ? '#155724' : '#721c24';
+
+        console.log(`Phase 3 Tests: ${passedTests}/${totalTests} passed`);
+    </script>
+</body>
+</html>
