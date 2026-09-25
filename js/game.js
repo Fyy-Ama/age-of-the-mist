@@ -460,6 +460,7 @@ class Game {
         return {
             getItemCount: (itemId) => this.inventory ? this.inventory.countItem(itemId) : 0,
             getQuestState: (questId) => this.questManager ? this.questManager.getState(questId) : undefined,
+            canStartQuest: (questId) => this.questManager ? this.questManager.canStart(questId) : false,
             hasDiscovered: (id) => this.discoveryLog ? this.discoveryLog.hasRecorded(id) : false,
             getFlag: (flag) => this.questManager ? this.questManager.getFlag(flag) : false
         };

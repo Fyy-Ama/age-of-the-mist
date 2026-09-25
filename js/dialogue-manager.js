@@ -104,6 +104,8 @@ class DialogueManager {
                 return (ctx.getItemCount ? ctx.getItemCount(cond.itemId) : 0) >= (cond.count || 1);
             case 'questState':
                 return ctx.getQuestState ? ctx.getQuestState(cond.questId) === cond.state : false;
+            case 'canStartQuest':
+                return ctx.canStartQuest ? ctx.canStartQuest(cond.questId) : false;
             case 'discovered':
                 return ctx.hasDiscovered ? ctx.hasDiscovered(cond.id) : false;
             case 'flag':

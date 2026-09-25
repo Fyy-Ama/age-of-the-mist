@@ -100,6 +100,7 @@ const DIALOGUE_TREES = {
                 choices: [
                     { text: '你是谁？', next: 'identity' },
                     { text: '你需要帮助吗？', next: 'quest_offer' },
+                    { text: '森林深处还有什么麻烦吗？', next: 'side_offer_forest', condition: { type: 'canStartQuest', questId: 'q_forest_guardian' } },
                     { text: '告辞', next: null }
                 ]
             },
@@ -145,7 +146,21 @@ const DIALOGUE_TREES = {
             epilogue: {
                 text: '药师正在晾晒新采的草药，见你过来，琥珀色的眼睛里闪过一丝笑意。"药膏还够用吗？"她不等回答，又低头忙活起来，"森林认你了，旅人。别死在外面就行。"',
                 choices: [
+                    { text: '森林深处还有麻烦吗？', next: 'side_offer_forest', condition: { type: 'canStartQuest', questId: 'q_forest_guardian' } },
                     { text: '我会小心的。', next: null }
+                ]
+            },
+            side_offer_forest: {
+                text: '药师停下手中的药杵，望向森林深处那片化不开的浓雾。"有件事我一直放心不下。"她压低声音，"林子深处有个东西——一团雾凝成的人形，我们叫它林地守卫者。它不分青红皂白地拦住所有过路的人，把好几个采药的都吓跑了。"她摇摇头，"它本不是这样的。是迷雾钻进了它心里，把它困在了原地。你若能进去，替我把它从这场噩梦里解脱出来，森林会感激你的。"',
+                choices: [
+                    { text: '我去会会它。', next: 'side_accept_forest', effects: [{ type: 'startQuest', questId: 'q_forest_guardian' }] },
+                    { text: '那东西太危险了。', next: null }
+                ]
+            },
+            side_accept_forest: {
+                text: '"小心。"药师把一小束晒干的草药塞给你，"它被迷雾蒙了眼，会把你当成敌人。别犹豫——犹豫的人永远走不出那片林子。"',
+                choices: [
+                    { text: '我记住了。', next: null }
                 ]
             }
         }
@@ -167,6 +182,7 @@ const DIALOGUE_TREES = {
                 choices: [
                     { text: '神殿守望者是什么？', next: 'lore' },
                     { text: '我能帮忙。', next: 'quest_offer' },
+                    { text: '神殿里还有别的遗物散落吗？', next: 'side_offer_temple', condition: { type: 'canStartQuest', questId: 'q_temple_relic' } },
                     { text: '告辞', next: null }
                 ]
             },
@@ -220,7 +236,21 @@ const DIALOGUE_TREES = {
             epilogue: {
                 text: '石碑守卫静立在残碑旁，胸口的微光平稳而安宁。"记忆已重新流动。"它缓缓颔首，石质的动作庄重如仪，"去吧，旅人。古道会指引你——正如你守护了这些文字。"',
                 choices: [
+                    { text: '神殿里还有别的遗物散落吗？', next: 'side_offer_temple', condition: { type: 'canStartQuest', questId: 'q_temple_relic' } },
                     { text: '我会记住这条路。', next: null }
+                ]
+            },
+            side_offer_temple: {
+                text: '石碑守卫的目光扫过满地碎石，胸口的微光黯淡了几分。"神殿倾覆时，许多圣物散落各处。"它缓缓抬起石手，指向残垣深处，"有两件对我尤为重要——一枚刻着古老符文的符文石，还有一副先灵佩戴的骨面具。它们被尘埃掩埋，被迷雾侵蚀。若你能将它们寻回，即便只是重新触摸它们，神殿的记忆也能完整一分。"',
+                choices: [
+                    { text: '我去找。', next: 'side_accept_temple', effects: [{ type: 'startQuest', questId: 'q_temple_relic' }] },
+                    { text: '我先忙别的。', next: null }
+                ]
+            },
+            side_accept_temple: {
+                text: '"愿碑文的先灵指引你。"守卫颔首，石屑簌簌落下，"符文石在中庭的断壁上，骨面具则在倒塌的神像手中。它们仍残留着旧世界的气息——你会认出来的。"',
+                choices: [
+                    { text: '我这就去。', next: null }
                 ]
             }
         }
@@ -317,6 +347,7 @@ const DIALOGUE_TREES = {
                 choices: [
                     { text: '你捞到过什么？', next: 'lore' },
                     { text: '有活干吗？', next: 'quest_offer' },
+                    { text: '海里还有别的宝贝吗？', next: 'side_offer_coast', condition: { type: 'canStartQuest', questId: 'q_coast_treasure' } },
                     { text: '告辞', next: null }
                 ]
             },
@@ -362,7 +393,21 @@ const DIALOGUE_TREES = {
             epilogue: {
                 text: '渔夫正把渔网挂上桅杆，海风把他花白的胡子吹得乱翘。"罗盘还好用不？"他咧嘴一笑，露出缺了颗的门牙，"它指着北，可路得你自己走。得空常回来看看老头子我。"',
                 choices: [
+                    { text: '海里还有别的宝贝吗？', next: 'side_offer_coast', condition: { type: 'canStartQuest', questId: 'q_coast_treasure' } },
                     { text: '一定，老伯。', next: null }
+                ]
+            },
+            side_offer_coast: {
+                text: '渔夫朝海面上啐了一口，压低嗓门神神秘秘地凑过来。"上回跟你说冰晶，你还不信。"他咧嘴一笑，"这回是真的——前阵子退大潮，露出半截沉船。船上散着两件好东西：一块绿得发亮的翡翠，还有一枚金币，成色好得很。"他拍拍你的肩，"我这把老骨头下不了深水了。你替我把它们捞上来，我讲个沉船的故事给你听，保准值回票价。"',
+                choices: [
+                    { text: '成交。', next: 'side_accept_coast', effects: [{ type: 'startQuest', questId: 'q_coast_treasure' }] },
+                    { text: '我先转转。', next: null }
+                ]
+            },
+            side_accept_coast: {
+                text: '"痛快！"渔夫哈哈大笑，缺了颗的门牙格外显眼，"翡翠在潮汐池里，金币冲到了沙滩上。退潮后去最好找——记住，别贪心往深海走，那儿的浪比看着凶。"',
+                choices: [
+                    { text: '我这就去。', next: null }
                 ]
             }
         }
@@ -471,6 +516,70 @@ const QUEST_DEFS = {
         rewards: {
             items: [{ id: 'compass_broken', count: 1 }],
             discoveries: []
+        }
+    },
+
+    // ===== 支线任务 =====
+
+    q_forest_guardian: {
+        id: 'q_forest_guardian',
+        name: '林地的阴霾',
+        type: 'side',
+        regionId: 'misty_forest',
+        giverNpc: 'npc_hermit_herbalist',
+        summary: '迷雾森林深处的林地守卫者被迷雾困住，拦住了所有过路人。替药师将它从噩梦中解脱。',
+        objectives: [
+            { type: 'defeat', guardianId: 'guardian_forest', count: 1, text: '击败林地守卫者' }
+        ],
+        objectiveHint: '林地守卫者在森林深处游荡。它被迷雾蒙了眼，会把你当成敌人——别犹豫。',
+        autoComplete: true,
+        combat: true,
+        prerequisites: [],
+        rewards: {
+            items: [{ id: 'herb_bloodthorn', count: 1 }],
+            discoveries: [{ id: 'forest_guardian_freed', text: '林地守卫者在你手下消散，化作一缕清雾融入林间。森林深处的道路重新对过路人敞开。' }]
+        }
+    },
+
+    q_temple_relic: {
+        id: 'q_temple_relic',
+        name: '散落的圣物',
+        type: 'side',
+        regionId: 'abandoned_temple',
+        giverNpc: 'npc_stele_warden',
+        summary: '神殿倾覆时散落了符文石与骨面具两件圣物。将它们寻回，让神殿的记忆完整一分。',
+        objectives: [
+            { type: 'collect', itemId: 'stone_rune', count: 1, text: '寻回符文石' },
+            { type: 'collect', itemId: 'mask_bone', count: 1, text: '寻回骨面具' }
+        ],
+        objectiveHint: '符文石在中庭的断壁上，骨面具在倒塌的神像手中。它们仍残留着旧世界的气息。',
+        autoComplete: true,
+        combat: false,
+        prerequisites: [],
+        rewards: {
+            items: [{ id: 'coin_silver', count: 1 }],
+            discoveries: [{ id: 'temple_relics_found', text: '你在废墟中寻回了符文石与骨面具。当两件圣物重聚，残碑忽然泛起柔和的光——神殿的记忆被悄悄补全了一角。' }]
+        }
+    },
+
+    q_coast_treasure: {
+        id: 'q_coast_treasure',
+        name: '沉船的馈赠',
+        type: 'side',
+        regionId: 'silver_coast',
+        giverNpc: 'npc_fisherman',
+        summary: '退大潮露出了半截沉船。替渔夫捞回散落的翡翠与金币，换他一个沉船的故事。',
+        objectives: [
+            { type: 'collect', itemId: 'gem_emerald', count: 1, text: '捞回翡翠' },
+            { type: 'collect', itemId: 'coin_gold', count: 1, text: '捞回金币' }
+        ],
+        objectiveHint: '翡翠在潮汐池里，金币冲到了沙滩上。退潮后去最好找——别贪心往深海走。',
+        autoComplete: true,
+        combat: false,
+        prerequisites: [],
+        rewards: {
+            items: [{ id: 'herb_starbloom', count: 1 }],
+            discoveries: [{ id: 'sunken_ship_tale', text: '翡翠与金币重见天日。渔夫兑现承诺，讲起了那艘沉船与旧王国海上贸易的往事——原来这片银色的海岸，也曾千帆竞发。' }]
         }
     }
 };

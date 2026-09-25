@@ -159,17 +159,22 @@ class QuestManager {
     // ===== NPC 头顶标记 =====
 
     // none / available(!) / active(?) / complete(✓)
+    // 一个 NPC 可能给出多个任务，取优先级最高的状态：available > active > complete > none
     getNpcMarkerState(npcId) {
+        const rank = { none: 0, complete: 1, active: 2, available: 3 };
+        let best = 'none';
         for (const questId in QUEST_DEFS) {
             const def = QUEST_DEFS[questId];
             if (def.giverNpc !== npcId) continue;
             const state = this.getState(questId);
-            if (state === QUEST_STATE.COMPLETED) return 'complete';
-            if (state === QUEST_STATE.READY) return 'available';
-            if (state === QUEST_STATE.ACTIVE) return 'active';
-            return this.canStart(questId) ? 'available' : 'none';
+            let s;
+            if (state === QUEST_STATE.COMPLETED) s = 'complete';
+            else if (state === QUEST_STATE.READY) s = 'available';
+            else if (state === QUEST_STATE.ACTIVE) s = 'active';
+            else s = this.canStart(questId) ? 'available' : 'none';
+            if (rank[s] > rank[best]) best = s;
         }
-        return 'none';
+        return best;
     }
 
     // ===== 列表（供任务 UI）=====
