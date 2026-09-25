@@ -18,6 +18,7 @@ class Game {
         this.dayNightCycle = null;
         this.worldEvents = null;
         this.dialogueManager = null;
+        this.questManager = null;
         this.state = GAME_STATES.LOADING;
         this.lastTime = 0;
         this.accumulator = 0;
@@ -62,9 +63,23 @@ class Game {
         this.dialogueManager = new DialogueManager(this.eventBus);
         this.dialogueManager.setEffectsHandler((effect) => this._handleDialogueEffect(effect));
 
+        this.questManager = new QuestManager(this.eventBus, {
+            getItemCount: (itemId) => this.inventory ? this.inventory.countItem(itemId) : 0,
+            isGuardianDefeated: (guardianId) => {
+                const g = this.worldMap ? this.worldMap.getGuardianById(guardianId) : null;
+                return g ? g.isDefeated() : false;
+            },
+            addItem: (itemId) => { if (this.inventory) this.inventory.addItem(itemId); },
+            recordDiscovery: (id, text) => { if (this.discoveryLog) this.discoveryLog.record('quest', id, text || ''); }
+        });
+
         this.eventBus.on('daynight:phaseChanged', (data) => {
             this.worldEvents.onPhaseChange(data.phase);
         });
+
+        this.eventBus.on('quest:started', () => this._refreshNpcMarkers());
+        this.eventBus.on('quest:ready', () => this._refreshNpcMarkers());
+        this.eventBus.on('quest:completed', () => this._refreshNpcMarkers());
 
         this.eventBus.on('dialogue:started', () => {
             this._pauseForDialogue();
@@ -94,10 +109,12 @@ class Game {
         this.player.heal();
         this.inventory = new Inventory(this.eventBus);
         this.discoveryLog = new DiscoveryLog(this.eventBus);
+        if (this.questManager) this.questManager.reset();
         this.worldEvents.reset();
         this.dayNightCycle.setTime(0.4);
         this.worldMap = new WorldMap(generateMapData(), this.regionManager);
         this.uiManager.invalidateMinimapCache();
+        this._refreshNpcMarkers();
 
         this.uiManager.closeActivePanel();
         this.uiManager.hideTitleScreen();
@@ -145,6 +162,7 @@ class Game {
 
         this.uiManager.closeActivePanel();
         this.uiManager.hideTitleScreen();
+        this._refreshNpcMarkers();
 
         this.uiManager.setDayNightCycle(this.dayNightCycle);
         if (this.dayNightCycle) {
@@ -174,6 +192,7 @@ class Game {
         this.player.y = 100 * TILE_SIZE;
         this.inventory = new Inventory(this.eventBus);
         this.discoveryLog = new DiscoveryLog(this.eventBus);
+        if (this.questManager) this.questManager.reset();
         this.worldEvents.reset();
         this.dayNightCycle.setTime(0.4);
         this.worldMap = new WorldMap(generateMapData(), this.regionManager);
@@ -449,10 +468,21 @@ class Game {
                 }
                 break;
             case 'startQuest':
-            case 'completeQuest':
-            case 'setFlag':
-                // 任务系统于步骤 4 接入
+                if (this.questManager && effect.questId) this.questManager.startQuest(effect.questId);
                 break;
+            case 'completeQuest':
+                if (this.questManager && effect.questId) this.questManager.completeQuest(effect.questId);
+                break;
+            case 'setFlag':
+                if (this.questManager && effect.flag) this.questManager.setFlag(effect.flag);
+                break;
+        }
+    }
+
+    _refreshNpcMarkers() {
+        if (!this.worldMap || !this.questManager) return;
+        for (const npc of this.worldMap.getAllNpcs()) {
+            npc.setMarkerState(this.questManager.getNpcMarkerState(npc.id));
         }
     }
 

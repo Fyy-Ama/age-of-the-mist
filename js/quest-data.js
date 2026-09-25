@@ -89,8 +89,9 @@ const DIALOGUE_TREES = {
         id: 'npc_hermit_herbalist',
         name: '隐士药师',
         start: [
-            { nodeId: 'complete', condition: { type: 'questState', questId: 'q_forest_herb', state: 'completed' } },
-            { nodeId: 'deliver', condition: { type: 'questState', questId: 'q_forest_herb', state: 'active' }, },
+            { nodeId: 'epilogue', condition: { type: 'questState', questId: 'q_forest_herb', state: 'completed' } },
+            { nodeId: 'complete', condition: { type: 'questState', questId: 'q_forest_herb', state: 'ready' } },
+            { nodeId: 'deliver', condition: { type: 'questState', questId: 'q_forest_herb', state: 'active' } },
             { nodeId: 'greeting' }
         ],
         nodes: {
@@ -136,9 +137,15 @@ const DIALOGUE_TREES = {
             },
             complete: {
                 text: '药师接过月瓣草，就着火光细细端详，琥珀色的眼睛里闪过一丝赞许。"完整、新鲜、带着夜露。"她从架子上取下一小瓶墨绿色的药膏，"拿着。影叶划的伤口、守卫者的爪痕，抹上就好。森林认你了，旅人。"',
-                effects: [{ type: 'completeQuest', questId: 'q_forest_herb' }, { type: 'addItem', itemId: 'herb_shadowleaf' }],
+                effects: [{ type: 'completeQuest', questId: 'q_forest_herb' }],
                 choices: [
                     { text: '多谢。', next: null }
+                ]
+            },
+            epilogue: {
+                text: '药师正在晾晒新采的草药，见你过来，琥珀色的眼睛里闪过一丝笑意。"药膏还够用吗？"她不等回答，又低头忙活起来，"森林认你了，旅人。别死在外面就行。"',
+                choices: [
+                    { text: '我会小心的。', next: null }
                 ]
             }
         }
@@ -149,7 +156,8 @@ const DIALOGUE_TREES = {
         id: 'npc_stele_warden',
         name: '石碑守卫',
         start: [
-            { nodeId: 'complete', condition: { type: 'questState', questId: 'q_temple_guardian', state: 'completed' } },
+            { nodeId: 'epilogue', condition: { type: 'questState', questId: 'q_temple_guardian', state: 'completed' } },
+            { nodeId: 'complete', condition: { type: 'questState', questId: 'q_temple_guardian', state: 'ready' } },
             { nodeId: 'progress', condition: { type: 'questState', questId: 'q_temple_guardian', state: 'active' } },
             { nodeId: 'greeting' }
         ],
@@ -204,7 +212,13 @@ const DIALOGUE_TREES = {
             },
             complete: {
                 text: '守卫胸口的微光骤然明亮，仿佛卸下千斤重担。"它解脱了……我也终于能安心。"它伸出石手，指向残碑上忽然浮现的一行符文，"看，这是通往幽暗洞窟的古道。你已证明自己配得上这些记忆。"',
-                effects: [{ type: 'recordDiscovery', id: 'temple_ancient_path', text: '石碑守卫为你解读了通往幽暗洞窟的古老道路。' }],
+                effects: [{ type: 'completeQuest', questId: 'q_temple_guardian' }],
+                choices: [
+                    { text: '我会记住这条路。', next: null }
+                ]
+            },
+            epilogue: {
+                text: '石碑守卫静立在残碑旁，胸口的微光平稳而安宁。"记忆已重新流动。"它缓缓颔首，石质的动作庄重如仪，"去吧，旅人。古道会指引你——正如你守护了这些文字。"',
                 choices: [
                     { text: '我会记住这条路。', next: null }
                 ]
@@ -217,7 +231,8 @@ const DIALOGUE_TREES = {
         id: 'npc_lost_miner',
         name: '迷途矿工',
         start: [
-            { nodeId: 'complete', condition: { type: 'questState', questId: 'q_cave_explore', state: 'completed' } },
+            { nodeId: 'epilogue', condition: { type: 'questState', questId: 'q_cave_explore', state: 'completed' } },
+            { nodeId: 'complete', condition: { type: 'questState', questId: 'q_cave_explore', state: 'ready' } },
             { nodeId: 'progress', condition: { type: 'questState', questId: 'q_cave_explore', state: 'active' } },
             { nodeId: 'greeting' }
         ],
@@ -272,9 +287,15 @@ const DIALOGUE_TREES = {
             },
             complete: {
                 text: '听完你的叙述，矿工沉默良久，眼泪在煤灰上冲出两道白痕。"至少……他不用再一个人待在黑里了。"他从怀里掏出一块温润的发光矿石，"这是阿岩最后挖到的。给你——它该跟着一个勇敢的人，而不是我这样的懦夫。"',
-                effects: [{ type: 'addItem', itemId: 'crystal_shard' }],
+                effects: [{ type: 'completeQuest', questId: 'q_cave_explore' }],
                 choices: [
                     { text: '他不是白走的。', next: null }
+                ]
+            },
+            epilogue: {
+                text: '矿工把油灯举得高了些，煤灰下的神情比初见时平静了许多。"你又回来了……真好。"他望向洞窟深处，声音不再发抖，"阿岩的事，谢谢你。我……我打算再挖一会儿。这次，不怕了。"',
+                choices: [
+                    { text: '保重，矿工。', next: null }
                 ]
             }
         }
@@ -285,7 +306,8 @@ const DIALOGUE_TREES = {
         id: 'npc_fisherman',
         name: '渔夫',
         start: [
-            { nodeId: 'complete', condition: { type: 'questState', questId: 'q_coast_relic', state: 'completed' } },
+            { nodeId: 'epilogue', condition: { type: 'questState', questId: 'q_coast_relic', state: 'completed' } },
+            { nodeId: 'complete', condition: { type: 'questState', questId: 'q_coast_relic', state: 'ready' } },
             { nodeId: 'deliver', condition: { type: 'questState', questId: 'q_coast_relic', state: 'active' } },
             { nodeId: 'greeting' }
         ],
@@ -332,11 +354,123 @@ const DIALOGUE_TREES = {
             },
             complete: {
                 text: '渔夫接过两块冰晶，对着阳光端详，寒气在他掌心凝成白雾。"哈，真是沉没王国的眼泪。"他从船舱底摸出一枚锈迹斑斑的碎罗盘，郑重地放进你手里，"压箱底的宝贝——它永远指着北，哪怕北边什么都没有。拿着，比我的破网有用。"',
-                effects: [{ type: 'completeQuest', questId: 'q_coast_relic' }, { type: 'addItem', itemId: 'compass_broken' }],
+                effects: [{ type: 'completeQuest', questId: 'q_coast_relic' }],
                 choices: [
                     { text: '这太珍贵了。', next: null }
                 ]
+            },
+            epilogue: {
+                text: '渔夫正把渔网挂上桅杆，海风把他花白的胡子吹得乱翘。"罗盘还好用不？"他咧嘴一笑，露出缺了颗的门牙，"它指着北，可路得你自己走。得空常回来看看老头子我。"',
+                choices: [
+                    { text: '一定，老伯。', next: null }
+                ]
             }
+        }
+    }
+};
+
+// ===== 任务定义 =====
+// objective.type: 'collect'（itemId + count）| 'defeat'（guardianId）
+// autoComplete: true 时目标达成即完成（无需返回 NPC 交付）；否则进入 ready 等待交付
+// combat: true 表示战斗任务，适用软失败（倒下不改变任务状态，可重试，无惩罚）
+// rewards 由任务引擎在完成时统一发放（物品 + 叙事发现），对话交付节点只触发 completeQuest
+
+const QUEST_DEFS = {
+
+    q_camp_first: {
+        id: 'q_camp_first',
+        name: '旅人的嘱托',
+        type: 'main',
+        regionId: 'travelers_camp',
+        giverNpc: 'npc_old_traveler',
+        summary: '老旅人请你采三株月瓣草，学会辨认这片土地给予的馈赠。',
+        objectives: [
+            { type: 'collect', itemId: 'herb_moonpetal', count: 3, text: '采集月瓣草' }
+        ],
+        objectiveHint: '月瓣草只在银光下绽放，营地、森林与海岸皆有生长。',
+        autoComplete: true,
+        combat: false,
+        prerequisites: [],
+        rewards: { items: [], discoveries: [] }
+    },
+
+    q_forest_herb: {
+        id: 'q_forest_herb',
+        name: '药师的药材',
+        type: 'main',
+        regionId: 'misty_forest',
+        giverNpc: 'npc_hermit_herbalist',
+        summary: '隐士药师需要三株完整的月瓣草，用来镇住最凶的高热。',
+        objectives: [
+            { type: 'collect', itemId: 'herb_moonpetal', count: 3, text: '采集月瓣草' }
+        ],
+        objectiveHint: '夜里采，只采花瓣完全张开的。森林深处与海岸银光下都有。',
+        autoComplete: false,
+        combat: false,
+        prerequisites: [],
+        rewards: {
+            items: [{ id: 'herb_shadowleaf', count: 1 }],
+            discoveries: []
+        }
+    },
+
+    q_temple_guardian: {
+        id: 'q_temple_guardian',
+        name: '石碑的守望',
+        type: 'main',
+        regionId: 'abandoned_temple',
+        giverNpc: 'npc_stele_warden',
+        summary: '击败被迷雾侵蚀的神殿守望者，让它的灵魂从迷雾中解脱。',
+        objectives: [
+            { type: 'defeat', guardianId: 'guardian_temple', count: 1, text: '击败神殿守望者' }
+        ],
+        objectiveHint: '守望者盘踞在神殿中庭，一击致命——绕到背后了结它。',
+        autoComplete: false,
+        combat: true,
+        prerequisites: [],
+        rewards: {
+            items: [],
+            discoveries: [{ id: 'temple_ancient_path', text: '石碑守卫为你解读了通往幽暗洞窟的古老道路。' }]
+        }
+    },
+
+    q_cave_explore: {
+        id: 'q_cave_explore',
+        name: '洞窟深处的下落',
+        type: 'main',
+        regionId: 'dark_cavern',
+        giverNpc: 'npc_lost_miner',
+        summary: '深入幽暗洞窟巨影的巢穴，探明矿工同伴阿岩的下落。',
+        objectives: [
+            { type: 'defeat', guardianId: 'guardian_cavern', count: 1, text: '击败洞窟巨影' }
+        ],
+        objectiveHint: '巨影怕光，别灭了灯。它盘踞在洞窟最深处。',
+        autoComplete: false,
+        combat: true,
+        prerequisites: [],
+        rewards: {
+            items: [{ id: 'crystal_shard', count: 1 }],
+            discoveries: []
+        }
+    },
+
+    q_coast_relic: {
+        id: 'q_coast_relic',
+        name: '沉没王国的眼泪',
+        type: 'main',
+        regionId: 'silver_coast',
+        giverNpc: 'npc_fisherman',
+        summary: '沿海岸线寻找两块冰晶，换取渔夫压箱底的宝贝。',
+        objectives: [
+            { type: 'collect', itemId: 'crystal_ice', count: 2, text: '收集冰晶' }
+        ],
+        objectiveHint: '冰晶只在退潮后的礁石缝里，冒着寒气，好认得很。',
+        autoComplete: false,
+        combat: false,
+        prerequisites: [],
+        rewards: {
+            items: [{ id: 'compass_broken', count: 1 }],
+            discoveries: []
         }
     }
 };

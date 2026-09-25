@@ -48,7 +48,8 @@ const REGIONS = [
             { id: 'mf_herb2', type: 'collectible', itemId: 'herb_moonpetal', tileX: 55, tileY: 70, promptText: '采集月瓣草 [E]', flavorText: '迷雾中隐约可见银色花朵。' },
             { id: 'mf_scroll1', type: 'collectible', itemId: 'scroll_mystery', tileX: 40, tileY: 15, promptText: '拾取卷轴 [E]', flavorText: '一棵古树的树洞里塞着一卷羊皮纸。' },
             { id: 'mf_herb3', type: 'collectible', itemId: 'herb_bloodthorn', tileX: 20, tileY: 60, promptText: '采集血棘 [E]', flavorText: '苔藓覆盖的树干旁有一株红色尖刺草药。' },
-            { id: 'mf_letter1', type: 'collectible', itemId: 'letter_warning', tileX: 65, tileY: 45, promptText: '拾取警告信 [E]', flavorText: '一根树枝上插着一封密封的信件。' }
+            { id: 'mf_letter1', type: 'collectible', itemId: 'letter_warning', tileX: 65, tileY: 45, promptText: '拾取警告信 [E]', flavorText: '一根树枝上插着一封密封的信件。' },
+            { id: 'mf_herb4', type: 'collectible', itemId: 'herb_moonpetal', tileX: 48, tileY: 85, promptText: '采集月瓣草 [E]', flavorText: '林间空地上，又一株银色花朵在幽暗中静静绽放。' }
         ],
         guardians: [
             { id: 'guardian_forest', name: '林地守卫者', tileX: 40, tileY: 50, regionId: 'misty_forest', flavorText: '一团浓雾凝聚成了人形，挡住了去路。' }
@@ -133,7 +134,9 @@ const REGIONS = [
             { id: 'sc_gem1', type: 'easter_egg', itemId: 'gem_emerald', tileX: 150, tileY: 160, promptText: '拾取翡翠 [E]', flavorText: '潮汐池里有什么东西在闪烁绿光。' },
             { id: 'sc_herb1', type: 'collectible', itemId: 'herb_starbloom', tileX: 100, tileY: 180, promptText: '采集星花 [E]', flavorText: '海风中摇曳着一朵白色的星花。' },
             { id: 'sc_coin2', type: 'collectible', itemId: 'coin_bronze', tileX: 30, tileY: 150, promptText: '捡起铜币 [E]', flavorText: '礁石缝隙中卡着一枚铜币。' },
-            { id: 'sc_herb2', type: 'collectible', itemId: 'herb_moonpetal', tileX: 170, tileY: 140, promptText: '采集月瓣草 [E]', flavorText: '月光照耀的岩石上生长着银色花朵。' }
+            { id: 'sc_herb2', type: 'collectible', itemId: 'herb_moonpetal', tileX: 170, tileY: 140, promptText: '采集月瓣草 [E]', flavorText: '月光照耀的岩石上生长着银色花朵。' },
+            { id: 'sc_ice1', type: 'collectible', itemId: 'crystal_ice', tileX: 75, tileY: 132, promptText: '拾取冰晶 [E]', flavorText: '退潮后的礁石缝里，一块冰晶散发着寒气。' },
+            { id: 'sc_ice2', type: 'collectible', itemId: 'crystal_ice', tileX: 128, tileY: 138, promptText: '拾取冰晶 [E]', flavorText: '湿漉漉的岩石上凝结着一块永不融化的冰晶。' }
         ],
         npcs: [
             { id: 'npc_fisherman', name: '渔夫', dialogueTreeId: 'npc_fisherman', spriteKey: 'npc_fisherman', tileX: 60, tileY: 120, regionId: 'silver_coast', flavorText: '银色浪涛边，一位皮肤黝黑的渔夫正修补着渔网。' }
