@@ -16,6 +16,17 @@ const PHASE_OVERLAYS = {
     dusk:  'rgba(200, 100, 50, 0.15)'
 };
 
+const OVERLAY_STOPS = [
+    { t: 0.00, rgba: [10, 10, 40, 0.45] },
+    { t: 0.15, rgba: [10, 10, 40, 0.45] },
+    { t: 0.25, rgba: [255, 180, 100, 0.12] },
+    { t: 0.35, rgba: [255, 255, 200, 0.0] },
+    { t: 0.65, rgba: [255, 255, 200, 0.0] },
+    { t: 0.75, rgba: [200, 100, 50, 0.15] },
+    { t: 0.85, rgba: [10, 10, 40, 0.45] },
+    { t: 1.00, rgba: [10, 10, 40, 0.45] }
+];
+
 const PHASE_ICONS = {
     night: '☾',
     dawn:  '🌅',
@@ -65,6 +76,20 @@ class DayNightCycle {
 
     getOverlayColor() {
         return PHASE_OVERLAYS[this._currentPhase] || PHASE_OVERLAYS.night;
+    }
+
+    getInterpolatedOverlayColor() {
+        const t = this._normalizedTime;
+        let i = 0;
+        while (i < OVERLAY_STOPS.length - 2 && t >= OVERLAY_STOPS[i + 1].t) i++;
+        const a = OVERLAY_STOPS[i];
+        const b = OVERLAY_STOPS[i + 1];
+        const f = smoothstep(a.t, b.t, t);
+        const r = Math.round(lerp(a.rgba[0], b.rgba[0], f));
+        const g = Math.round(lerp(a.rgba[1], b.rgba[1], f));
+        const bl = Math.round(lerp(a.rgba[2], b.rgba[2], f));
+        const al = (lerp(a.rgba[3], b.rgba[3], f)).toFixed(3);
+        return `rgba(${r}, ${g}, ${bl}, ${al})`;
     }
 
     getAmbientTint() {

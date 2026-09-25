@@ -12,6 +12,8 @@ class Player {
         this.currentRegionId = null;
         this.hp = PLAYER_MAX_HP;
         this.maxHp = PLAYER_MAX_HP;
+        this.walkFrame = 0;
+        this._walkTime = 0;
     }
 
     update(dt, input, worldMap) {
@@ -42,6 +44,14 @@ class Player {
         }
 
         this.isMoving = dx !== 0 || dy !== 0;
+
+        if (this.isMoving) {
+            this._walkTime += dt;
+            this.walkFrame = Math.floor(this._walkTime / 0.15) % 2;
+        } else {
+            this._walkTime = 0;
+            this.walkFrame = 0;
+        }
 
         const moveX = dx * this.speed * dt;
         const moveY = dy * this.speed * dt;

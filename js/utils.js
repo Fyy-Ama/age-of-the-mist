@@ -46,7 +46,12 @@ function deepClone(obj) {
     return cloned;
 }
 
-function smoothstep(t) {
-    t = clamp(t, 0, 1);
+function smoothstep(edge0, edge1, x) {
+    if (x === undefined) {
+        x = edge0;
+        edge0 = 0;
+        edge1 = 1;
+    }
+    const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
     return t * t * (3 - 2 * t);
 }

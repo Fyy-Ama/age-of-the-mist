@@ -7,8 +7,20 @@ class WorldMap {
         this._objectStates = new Map();
         this._interactables = [];
         this._guardians = [];
+        this.terrainIndexMap = this._buildTerrainIndexMap();
         this._buildInteractables();
         this._buildGuardians();
+    }
+
+    _buildTerrainIndexMap() {
+        const map = new Uint8Array(WORLD_ROWS * WORLD_COLS);
+        for (let row = 0; row < WORLD_ROWS; row++) {
+            for (let col = 0; col < WORLD_COLS; col++) {
+                const region = this.regionManager.getRegionAt(col * TILE_SIZE, row * TILE_SIZE);
+                map[row * WORLD_COLS + col] = region ? TERRAIN_TYPE_IDS[region.terrainType] : 0;
+            }
+        }
+        return map;
     }
 
     _buildInteractables() {

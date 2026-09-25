@@ -816,7 +816,7 @@ class UIManager {
             }
             const bgCtx = this._minimapCache.getContext('2d');
             bgCtx.clearRect(0, 0, w, h);
-            bgCtx.fillStyle = 'rgba(244, 232, 193, 0.7)';
+            bgCtx.fillStyle = 'rgba(26, 20, 14, 0.82)';
             bgCtx.fillRect(0, 0, w, h);
 
             const allRegions = regionManager.getAllRegions();
@@ -828,17 +828,18 @@ class UIManager {
                 const ry = b.y * TILE_SIZE * scaleY;
                 const rw = b.w * TILE_SIZE * scaleX;
                 const rh = b.h * TILE_SIZE * scaleY;
+                const accent = REGION_ACCENTS[region.terrainType] || REGION_ACCENTS.default;
 
                 if (visitedIds.includes(region.id)) {
-                    bgCtx.fillStyle = region.palette ? region.palette.ground : '#ccc';
-                    bgCtx.globalAlpha = 0.6;
+                    bgCtx.fillStyle = accent.primary;
+                    bgCtx.globalAlpha = 0.75;
                     bgCtx.fillRect(rx, ry, rw, rh);
                     bgCtx.globalAlpha = 1.0;
-                    bgCtx.strokeStyle = region.palette ? region.palette.labelColor : '#888';
+                    bgCtx.strokeStyle = accent.secondary;
                     bgCtx.lineWidth = 1;
                     bgCtx.strokeRect(rx, ry, rw, rh);
                 } else {
-                    bgCtx.strokeStyle = '#aaa';
+                    bgCtx.strokeStyle = 'rgba(168, 144, 112, 0.5)';
                     bgCtx.lineWidth = 1;
                     bgCtx.setLineDash([2, 2]);
                     bgCtx.strokeRect(rx, ry, rw, rh);
@@ -866,8 +867,13 @@ class UIManager {
 
         const px = playerX * scaleX;
         const py = playerY * scaleY;
-        ctx.fillStyle = '#fff';
-        ctx.strokeStyle = '#333';
+        ctx.strokeStyle = 'rgba(255, 215, 0, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(px, py, 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#ffd700';
+        ctx.strokeStyle = '#3d2b1f';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(px, py, 3, 0, Math.PI * 2);

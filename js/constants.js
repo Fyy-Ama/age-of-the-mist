@@ -45,3 +45,24 @@ const GAME_STATES = {
     PLAYING: 'playing',
     PAUSED: 'paused'
 };
+
+const REGION_ACCENTS = {
+    forest: { primary: '#1e3a1e', secondary: '#d4a574', particle: '#ffd700' },
+    coast: { primary: '#6a8a9a', secondary: '#e0f0ff', particle: '#ffffff' },
+    cave: { primary: '#2a1a3a', secondary: '#ff8c00', particle: '#ff6600' },
+    ruins: { primary: '#5a5a6a', secondary: '#d4a574', particle: '#ffbf00' },
+    camp: { primary: '#7a6040', secondary: '#6aaa6a', particle: '#ff9944' },
+    default: { primary: '#4a7a3a', secondary: '#d4a574', particle: '#ffd700' }
+};
+
+const TERRAIN_TYPE_IDS = { forest: 1, coast: 2, cave: 3, ruins: 4, camp: 5 };
+const TERRAIN_TYPE_NAMES = ['default', 'forest', 'coast', 'cave', 'ruins', 'camp'];
+
+const REGION_NIGHT_TINTS = {
+    forest: 'rgba(20, 60, 30, 0.10)',
+    coast: 'rgba(70, 100, 130, 0.10)',
+    cave: 'rgba(40, 20, 70, 0.12)',
+    ruins: 'rgba(60, 60, 80, 0.10)',
+    camp: 'rgba(90, 60, 30, 0.08)',
+    default: null
+};

@@ -47,6 +47,7 @@ class Game {
         this.player = new Player(spawnX, spawnY);
 
         this.renderer = new Renderer(this.canvas, this.ctx);
+        this.visualEffects = new VisualEffects();
 
         this.inventory = new Inventory(this.eventBus);
         this.discoveryLog = new DiscoveryLog(this.eventBus);
@@ -249,6 +250,11 @@ class Game {
         this._updateGuardians(dt);
         this._handleInteraction();
 
+        const currentRegion = this.player.currentRegionId
+            ? this.regionManager.getRegion(this.player.currentRegionId)
+            : null;
+        this.visualEffects.update(dt, this.player, currentRegion ? currentRegion.terrainType : 'default');
+
         this.camera.update(this.player.getPosition(), dt);
     }
 
@@ -396,7 +402,7 @@ class Game {
     }
 
     _render() {
-        this.renderer.render(this.camera, this.worldMap, this.player, this.dayNightCycle);
+        this.renderer.render(this.camera, this.worldMap, this.player, this.dayNightCycle, this.visualEffects);
 
         this.uiManager.renderMinimap(
             this.regionManager,

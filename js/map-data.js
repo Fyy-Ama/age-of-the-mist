@@ -15,6 +15,72 @@ const TILE_RENDER_INFO = {
     [TILE_IDS.BRIDGE]: { color: '#6a4a2a', walkable: true }
 };
 
+const REGION_TILE_PALETTES = {
+    forest: {
+        [TILE_IDS.GRASS]: '#2a4a2a',
+        [TILE_IDS.FOREST_GRASS]: '#1e3a1e',
+        [TILE_IDS.TREE_TRUNK]: '#2a1a0a',
+        [TILE_IDS.PATH]: '#3a5a2a',
+        [TILE_IDS.WATER]: '#2a4a5a'
+    },
+    coast: {
+        [TILE_IDS.GRASS]: '#5a7a6a',
+        [TILE_IDS.COAST_SAND]: '#b8c8d4',
+        [TILE_IDS.WATER]: '#3d5a75',
+        [TILE_IDS.PATH]: '#8a9aa5',
+        [TILE_IDS.CAVE_ROCK]: '#4a5a68'
+    },
+    cave: {
+        [TILE_IDS.GRASS]: '#241a33',
+        [TILE_IDS.CAVE_ROCK]: '#1a0f2a',
+        [TILE_IDS.STONE_FLOOR]: '#2a1f3d',
+        [TILE_IDS.PATH]: '#3a2a4a',
+        [TILE_IDS.WATER]: '#1a1a3a'
+    },
+    ruins: {
+        [TILE_IDS.GRASS]: '#5a6a4a',
+        [TILE_IDS.STONE_FLOOR]: '#6a6a72',
+        [TILE_IDS.RUIN_BRICK]: '#4a4a55',
+        [TILE_IDS.PATH]: '#7a7a62',
+        [TILE_IDS.WALL]: '#3a3a42'
+    },
+    camp: {
+        [TILE_IDS.GRASS]: '#4a6a3a',
+        [TILE_IDS.CAMP_DIRT]: '#7a5f3f',
+        [TILE_IDS.PATH]: '#8b7355',
+        [TILE_IDS.TREE_TRUNK]: '#3d2b1f'
+    }
+};
+
+function shadeHexColor(hex, percent) {
+    const num = parseInt(hex.slice(1), 16);
+    const f = 1 + percent / 100;
+    const r = Math.min(255, Math.max(0, Math.round(((num >> 16) & 255) * f)));
+    const g = Math.min(255, Math.max(0, Math.round(((num >> 8) & 255) * f)));
+    const b = Math.min(255, Math.max(0, Math.round((num & 255) * f)));
+    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+const _tileColorVariantCache = {};
+const TILE_SHADE_LEVELS = [-7, -3, 2, 6];
+
+function getTileColorVariants(terrainType, tileId) {
+    const key = terrainType + ':' + tileId;
+    let variants = _tileColorVariantCache[key];
+    if (!variants) {
+        const palette = REGION_TILE_PALETTES[terrainType];
+        const base = (palette && palette[tileId]) || TILE_RENDER_INFO[tileId].color;
+        variants = TILE_SHADE_LEVELS.map(p => shadeHexColor(base, p));
+        _tileColorVariantCache[key] = variants;
+    }
+    return variants;
+}
+
+function tileShadeIndex(col, row) {
+    const h = (col * 374761393 + row * 668265263) >>> 0;
+    return (h >>> 4) & 3;
+}
+
 function generateMapData() {
     const tileMap = new Uint8Array(WORLD_ROWS * WORLD_COLS);
     
