@@ -558,6 +558,7 @@ class Game {
             worldStates: this.worldMap.exportStates(),
             dayNight: this.dayNightCycle.export(),
             worldEvents: this.worldEvents.export(),
+            quests: this.questManager ? this.questManager.export() : null,
             settings: this.uiManager.getSettings()
         };
     }
@@ -582,6 +583,9 @@ class Game {
         }
         if (data.worldEvents) {
             this.worldEvents.import(data.worldEvents);
+        }
+        if (data.quests && this.questManager) {
+            this.questManager.import(data.quests);
         }
         if (data.settings) {
             this.uiManager.importSettings(data.settings);
