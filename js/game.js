@@ -81,6 +81,8 @@ class Game {
         this.eventBus.on('quest:ready', () => this._refreshNpcMarkers());
         this.eventBus.on('quest:completed', () => this._refreshNpcMarkers());
 
+        this.uiManager.setQuestManager(this.questManager);
+
         this.eventBus.on('dialogue:started', () => {
             this._pauseForDialogue();
         });
@@ -115,6 +117,7 @@ class Game {
         this.worldMap = new WorldMap(generateMapData(), this.regionManager);
         this.uiManager.invalidateMinimapCache();
         this._refreshNpcMarkers();
+        this.uiManager.updateQuestTracker();
 
         this.uiManager.closeActivePanel();
         this.uiManager.hideTitleScreen();
@@ -163,6 +166,7 @@ class Game {
         this.uiManager.closeActivePanel();
         this.uiManager.hideTitleScreen();
         this._refreshNpcMarkers();
+        this.uiManager.updateQuestTracker();
 
         this.uiManager.setDayNightCycle(this.dayNightCycle);
         if (this.dayNightCycle) {
@@ -330,6 +334,11 @@ class Game {
                     this.player.y
                 );
                 if (this.uiManager.isPanelOpen()) {
+                    this.state = GAME_STATES.PAUSED;
+                }
+            }
+            if (this.input.isKeyPressed('q')) {
+                if (this.uiManager.toggleQuestLog(this.questManager)) {
                     this.state = GAME_STATES.PAUSED;
                 }
             }

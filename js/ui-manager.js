@@ -16,13 +16,20 @@ class UIManager {
         this._gameRef = null;
         this._dialogueChoiceIndex = 0;
         this._dialogueVisibleChoices = [];
+        this._questManager = null;
 
         this._bindEvents();
         this._bindDialogueKeys();
+        this._bindQuestKeys();
     }
 
     setGameRef(game) {
         this._gameRef = game;
+    }
+
+    setQuestManager(questManager) {
+        this._questManager = questManager;
+        this.updateQuestTracker();
     }
 
     setDayNightCycle(dayNightCycle) {
@@ -52,6 +59,7 @@ class UIManager {
     _bindEvents() {
         this._eventBus.on('item:collected', () => {
             this.updateHUD(this._dayNightCycle);
+            this.updateQuestTracker();
         });
 
         this._eventBus.on('discovery:recorded', () => {
@@ -92,6 +100,21 @@ class UIManager {
 
         this._eventBus.on('dialogue:ended', () => {
             this._onDialogueEnded();
+        });
+
+        this._eventBus.on('quest:started', (data) => {
+            this.updateQuestTracker();
+            if (data && data.def) this.showEventToast('接受任务', data.def.name);
+        });
+
+        this._eventBus.on('quest:ready', (data) => {
+            this.updateQuestTracker();
+            if (data && data.def) this.showEventToast('目标达成', data.def.name + '（返回交付）');
+        });
+
+        this._eventBus.on('quest:completed', (data) => {
+            this.updateQuestTracker();
+            if (data && data.def) this.showEventToast('任务完成', data.def.name);
         });
     }
 
@@ -301,6 +324,9 @@ class UIManager {
 
         const dialoguePanel = document.getElementById('dialogue-panel');
         if (dialoguePanel) dialoguePanel.style.display = 'none';
+
+        const questLogOverlay = document.getElementById('quest-log-overlay');
+        if (questLogOverlay) questLogOverlay.style.display = 'none';
 
         return prev;
     }
@@ -1084,6 +1110,167 @@ class UIManager {
     _updateDialogueChoiceHighlight() {
         const btns = document.querySelectorAll('#dialogue-choices .dialogue-choice');
         btns.forEach((b, i) => b.classList.toggle('selected', i === this._dialogueChoiceIndex));
+    }
+
+    // ===== Quest UI =====
+
+    _bindQuestKeys() {
+        document.addEventListener('keydown', (e) => {
+            if (this._activePanel !== 'questlog') return;
+            const k = (e.key || '').toLowerCase();
+            if (k === 'q' || k === 'escape') {
+                e.preventDefault();
+                this._closeQuestLog();
+            }
+        });
+    }
+
+    _createQuestTracker() {
+        const tracker = document.createElement('div');
+        tracker.id = 'quest-tracker';
+        tracker.className = 'quest-tracker';
+        tracker.style.display = 'none';
+        document.getElementById('ui-layer').appendChild(tracker);
+        return tracker;
+    }
+
+    updateQuestTracker() {
+        const qm = this._questManager;
+        let tracker = document.getElementById('quest-tracker');
+        if (!qm) {
+            if (tracker) tracker.style.display = 'none';
+            return;
+        }
+        const ids = qm.getTrackedQuestIds();
+        if (!tracker) {
+            if (ids.length === 0) return;
+            tracker = this._createQuestTracker();
+        }
+        if (ids.length === 0) {
+            tracker.style.display = 'none';
+            return;
+        }
+        tracker.style.display = 'block';
+
+        let html = '<div class="quest-tracker-title">任务追踪</div>';
+        for (const id of ids) {
+            const def = qm.getDef(id);
+            if (!def) continue;
+            const state = qm.getState(id);
+            const ready = state === 'ready';
+            html += `<div class="quest-tracker-item${ready ? ' ready' : ''}">`;
+            html += `<div class="quest-tracker-name">${def.name}`;
+            html += `<span class="quest-tracker-state">${ready ? '可交付' : '进行中'}</span></div>`;
+            for (const p of qm.getObjectiveProgress(id)) {
+                const mark = p.met ? '\u2713' : '\u25CB';
+                const frac = p.required > 1 ? ` (${p.current}/${p.required})` : '';
+                html += `<div class="quest-tracker-obj${p.met ? ' met' : ''}">${mark} ${p.text}${frac}</div>`;
+            }
+            html += '</div>';
+        }
+        tracker.innerHTML = html;
+    }
+
+    toggleQuestLog(questManager) {
+        if (questManager) this._questManager = questManager;
+        const overlay = document.getElementById('quest-log-overlay');
+        if (overlay && this._activePanel === 'questlog') {
+            this._closeQuestLog();
+            return false;
+        }
+        let ov = overlay || this._createQuestLog();
+        this._activePanel = 'questlog';
+        ov.style.display = 'flex';
+        this._renderQuestLog();
+        return true;
+    }
+
+    _createQuestLog() {
+        const overlay = document.createElement('div');
+        overlay.id = 'quest-log-overlay';
+        overlay.className = 'panel-overlay';
+
+        const panel = document.createElement('div');
+        panel.className = 'quest-log-panel parchment-panel';
+        panel.innerHTML = `
+            <h2>\uD83D\uDCDC \u4EFB\u52A1\u65E5\u5FD7</h2>
+            <div id="quest-log-content" class="quest-log-content"></div>
+            <button id="quest-log-close" class="btn">\u5173\u95ED [Q]</button>
+        `;
+
+        overlay.appendChild(panel);
+        document.getElementById('ui-layer').appendChild(overlay);
+
+        panel.querySelector('#quest-log-close').addEventListener('click', () => {
+            this._closeQuestLog();
+        });
+
+        return overlay;
+    }
+
+    _renderQuestLog() {
+        const content = document.getElementById('quest-log-content');
+        if (!content) return;
+        const qm = this._questManager;
+        if (!qm) {
+            content.innerHTML = '<div class="quest-log-empty">暂无任务</div>';
+            return;
+        }
+
+        const tracked = qm.getTrackedQuestIds();
+        const completed = qm.getCompletedQuestIds();
+        let html = '';
+
+        html += '<div class="quest-log-section">进行中</div>';
+        if (tracked.length === 0) {
+            html += '<div class="quest-log-empty">尚无进行中的任务。与各地居民交谈以接受委托。</div>';
+        } else {
+            for (const id of tracked) {
+                html += this._renderQuestEntry(qm, id, false);
+            }
+        }
+
+        html += '<div class="quest-log-section">已完成</div>';
+        if (completed.length === 0) {
+            html += '<div class="quest-log-empty">还没有完成任何任务。</div>';
+        } else {
+            for (const id of completed) {
+                html += this._renderQuestEntry(qm, id, true);
+            }
+        }
+
+        content.innerHTML = html;
+    }
+
+    _renderQuestEntry(qm, id, done) {
+        const def = qm.getDef(id);
+        if (!def) return '';
+        const state = qm.getState(id);
+        const ready = state === 'ready';
+        let html = `<div class="quest-entry${done ? ' done' : ''}${ready ? ' ready' : ''}">`;
+        html += `<div class="quest-entry-head">${def.name}`;
+        html += `<span class="quest-entry-tag">${done ? '已完成' : (ready ? '可交付' : '进行中')}</span></div>`;
+        if (def.summary) html += `<div class="quest-entry-summary">${def.summary}</div>`;
+        if (!done) {
+            for (const p of qm.getObjectiveProgress(id)) {
+                const mark = p.met ? '\u2713' : '\u25CB';
+                const frac = p.required > 1 ? ` (${p.current}/${p.required})` : '';
+                html += `<div class="quest-entry-obj${p.met ? ' met' : ''}">${mark} ${p.text}${frac}</div>`;
+            }
+            if (def.objectiveHint) html += `<div class="quest-entry-hint">${def.objectiveHint}</div>`;
+        }
+        html += '</div>';
+        return html;
+    }
+
+    _closeQuestLog() {
+        const overlay = document.getElementById('quest-log-overlay');
+        if (overlay) overlay.style.display = 'none';
+        this._activePanel = null;
+        if (this._gameRef) {
+            this._gameRef.resume();
+            if (this._gameRef.input) this._gameRef.input.syncState();
+        }
     }
 
     // ===== Hide All =====
